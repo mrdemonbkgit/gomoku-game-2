@@ -3,6 +3,8 @@
  * This script implements a basic Gomoku (Five in a Row) game.
  */
 
+import AIPlayer from './ai-player.js';
+
 // Constants
 const BOARD_SIZE = 15; // Size of the game board (15x15)
 const EMPTY = 0; // Represents an empty cell
