@@ -172,24 +172,21 @@ function resetGame() {
     
     // Clear the move history
     moveHistory = [];
-    
-    // Update the game status display
-    updateStatus();
-    
-    // Update the visual representation of the board
-    updateBoard();
-    
-    // Update the state of the Undo button
-    updateUndoButton();
 
     // Reset the lastMove reference
     lastMove = null;
-
-    // Remove 'last-move' class from all cells
-    document.querySelectorAll('.cell').forEach(cell => {
-        cell.classList.remove('last-move');
-    });
     
+    // Update the game status display
+    updateStatus();
+
+    // Remove stone classes and last-move highlight from all cells
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('black', 'white', 'last-move');
+    });
+
+    // Update the state of the Undo button
+    updateUndoButton();
+
     // Log the game reset for debugging purposes
     log('Game reset');
 }
@@ -215,11 +212,11 @@ function saveMove(row, col) {
  */
 function undo() {
     if (moveHistory.length > 0) {
-        lastMove = moveHistory.pop();
-        board[lastMove.row][lastMove.col] = EMPTY;
+        const moveToUndo = moveHistory.pop();
+        board[moveToUndo.row][moveToUndo.col] = EMPTY;
         
-        // Remove the stone and highlight from the last move
-        const cell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
+        // Remove the stone and highlight from the undone move
+        const cell = document.querySelector(`.cell[data-row="${moveToUndo.row}"][data-col="${moveToUndo.col}"]`);
         cell.classList.remove('black', 'white', 'last-move');
 
         // Update the lastMove reference
@@ -228,10 +225,12 @@ function undo() {
         // If there's a previous move, highlight it
         if (lastMove) {
             highlightLastMove(lastMove.row, lastMove.col);
+            // Switch back to the player who made the last remaining move
+            currentPlayer = lastMove.player === BLACK ? WHITE : BLACK;
+        } else {
+            // If no moves left, set currentPlayer back to BLACK (starting player)
+            currentPlayer = BLACK;
         }
-
-        // Switch back to the player who made the last move
-        currentPlayer = lastMove.player;
 
         // Update the UI
         updateStatus();
@@ -255,9 +254,9 @@ function updateBoard() {
         const row = Math.floor(index / BOARD_SIZE);
         const col = index % BOARD_SIZE;
         cell.classList.remove('black', 'white');
-        if (board[row][col] === BLACK) {
+        if (board && board[row] && board[row][col] === BLACK) {
             cell.classList.add('black');
-        } else if (board[row][col] === WHITE) {
+        } else if (board && board[row] && board[row][col] === WHITE) {
             cell.classList.add('white');
         }
     });
