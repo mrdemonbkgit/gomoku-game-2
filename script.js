@@ -8,16 +8,19 @@ const BOARD_SIZE = 15; // Size of the game board (15x15)
 const EMPTY = 0; // Represents an empty cell
 const BLACK = 1; // Represents a black stone
 const WHITE = 2; // Represents a white stone
+const MAX_HISTORY = 50; // Maximum number of moves to store in history
 
 // Game state variables
 let board = []; // 2D array representing the game board
 let currentPlayer = BLACK; // Current player (starts with Black)
 let gameOver = false; // Flag to indicate if the game has ended
+let moveHistory = [];
 
 // DOM elements
 const boardElement = document.getElementById('board');
 const statusElement = document.getElementById('status');
 const newGameButton = document.getElementById('new-game');
+const undoButton = document.getElementById('undo');
 
 /**
  * Logging function for debugging
@@ -50,32 +53,48 @@ function initializeBoard() {
 }
 
 /**
- * Handle cell click event
+ * Handle a cell click event on the game board
+ * This function is called every time a player clicks on a cell
+ * 
  * @param {Event} event - The click event object
  */
 function handleCellClick(event) {
-    if (gameOver) return; // Ignore clicks if the game is over
+    // If the game is over, ignore any further clicks
+    if (gameOver) return;
 
+    // Extract row and column from the clicked cell's data attributes
     const row = parseInt(event.target.dataset.row);
     const col = parseInt(event.target.dataset.col);
 
+    // Check if the clicked cell is empty
     if (board[row][col] === EMPTY) {
-        // Place the stone on the board
+        // Place the current player's stone on the board
         board[row][col] = currentPlayer;
+        
+        // Update the visual representation of the board
         event.target.classList.add(currentPlayer === BLACK ? 'black' : 'white');
+        
+        // Log the move for debugging purposes
         log(`Player ${currentPlayer} placed a stone at (${row}, ${col})`);
 
-        // Check for win or draw
+        // Save the move to history for the undo feature
+        saveMove(row, col);
+
+        // Check if the current move results in a win
         if (checkWin(row, col)) {
             gameOver = true;
             statusElement.textContent = `Player ${currentPlayer === BLACK ? 'Black' : 'White'} wins!`;
             log(`Player ${currentPlayer} wins`);
-        } else if (checkDraw()) {
+        } 
+        // If not a win, check if it's a draw
+        else if (checkDraw()) {
             gameOver = true;
             statusElement.textContent = 'It\'s a draw!';
             log('Game ended in a draw');
-        } else {
-            // Switch to the other player
+        } 
+        // If neither win nor draw, switch to the other player
+        else {
+            // Switch to the other player after the move
             currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
             updateStatus();
         }
@@ -145,25 +164,103 @@ function updateStatus() {
 
 /**
  * Reset the game to its initial state
+ * This function is called when the "New Game" button is clicked
  */
 function resetGame() {
-    // Clear the board data structure
+    // Reset the game board to all empty cells
     board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(EMPTY));
+    
+    // Set Black as the starting player
     currentPlayer = BLACK;
+    
+    // Reset the game over flag
     gameOver = false;
+    
+    // Clear the move history
+    moveHistory = [];
+    
+    // Update the game status display
     updateStatus();
-
-    // Clear the visual board
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(cell => {
-        cell.classList.remove('black', 'white');
-    });
-
+    
+    // Update the visual representation of the board
+    updateBoard();
+    
+    // Update the state of the Undo button
+    updateUndoButton();
+    
+    // Log the game reset for debugging purposes
     log('Game reset');
 }
 
+/**
+ * Save the current move to history
+ * @param {number} row - The row of the placed stone
+ * @param {number} col - The column of the placed stone
+ */
+function saveMove(row, col) {
+    moveHistory.push({ row, col, player: currentPlayer });
+
+    // Limit the history size
+    if (moveHistory.length > MAX_HISTORY) {
+        moveHistory.shift();
+    }
+
+    updateUndoButton();
+}
+
+/**
+ * Undo the last move
+ */
+function undo() {
+    if (moveHistory.length > 0) {
+        const lastMove = moveHistory.pop();
+        board[lastMove.row][lastMove.col] = EMPTY;
+
+        // Switch back to the player who made the last move
+        currentPlayer = lastMove.player;
+
+        // Update the UI
+        updateBoard();
+        updateStatus();
+        updateUndoButton();
+
+        // Reset game over state if necessary
+        if (gameOver) {
+            gameOver = false;
+        }
+
+        log('Move undone');
+    }
+}
+
+/**
+ * Update the visual board based on the current game state
+ */
+function updateBoard() {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach((cell, index) => {
+        const row = Math.floor(index / BOARD_SIZE);
+        const col = index % BOARD_SIZE;
+        cell.classList.remove('black', 'white');
+        if (board[row][col] === BLACK) {
+            cell.classList.add('black');
+        } else if (board[row][col] === WHITE) {
+            cell.classList.add('white');
+        }
+    });
+}
+
+/**
+ * Update the state of Undo button
+ */
+function updateUndoButton() {
+    undoButton.disabled = moveHistory.length === 0;
+}
+
+
 // Event listener for the New Game button
 newGameButton.addEventListener('click', resetGame);
+undoButton.addEventListener('click', undo);
 
 // Initialize the game
 initializeBoard();
