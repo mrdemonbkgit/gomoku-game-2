@@ -21,31 +21,6 @@ body {
     border: 2px solid #8b4513;
 }
 
-.cell {
-    width: 30px;
-    height: 30px;
-    background-color: #deb887;
-    border: 1px solid #8b4513;
-    cursor: pointer;
-}
-
-.cell::before {
-    content: "";
-    display: block;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    margin: 2px;
-}
-
-.cell.black::before {
-    background-color: black;
-}
-
-.cell.white::before {
-    background-color: white;
-}
-
 #controls {
     margin-top: 10px;
 }
@@ -59,4 +34,60 @@ button {
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Styling for the game board cells */
+.cell {
+    width: 30px;
+    height: 30px;
+    background-color: #deb887;
+    border: 1px solid #8b4513;
+    cursor: pointer;
+    position: relative; /* Add this to position the glow effect */
+}
+
+/* Styling for the stones */
+.cell::before {
+    content: "";
+    display: block;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    margin: 2px;
+    position: relative; /* Add this for proper layering */
+    z-index: 1; /* Ensure the stone is above the glow */
+}
+
+.cell.black::before {
+    background-color: black;
+}
+
+.cell.white::before {
+    background-color: white;
+}
+
+/* Styling for the last placed stone */
+.cell.last-move::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    background-color: rgba(255, 215, 0, 0.5); /* Semi-transparent gold */
+    z-index: 0; /* Place the glow behind the stone */
+    animation: pulse 1.5s infinite alternate;
+}
+
+/* Pulse animation for the glow effect */
+@keyframes pulse {
+    from {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    to {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
 }

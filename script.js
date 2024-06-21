@@ -15,6 +15,7 @@ let board = []; // 2D array representing the game board
 let currentPlayer = BLACK; // Current player (starts with Black)
 let gameOver = false; // Flag to indicate if the game has ended
 let moveHistory = [];
+let lastMove = null;
 
 // DOM elements
 const boardElement = document.getElementById('board');
@@ -69,13 +70,7 @@ function handleCellClick(event) {
     // Check if the clicked cell is empty
     if (board[row][col] === EMPTY) {
         // Place the current player's stone on the board
-        board[row][col] = currentPlayer;
-        
-        // Update the visual representation of the board
-        event.target.classList.add(currentPlayer === BLACK ? 'black' : 'white');
-        
-        // Log the move for debugging purposes
-        log(`Player ${currentPlayer} placed a stone at (${row}, ${col})`);
+        placeStone(row, col);
 
         // Save the move to history for the undo feature
         saveMove(row, col);
@@ -94,7 +89,6 @@ function handleCellClick(event) {
         } 
         // If neither win nor draw, switch to the other player
         else {
-            // Switch to the other player after the move
             currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
             updateStatus();
         }
@@ -187,6 +181,14 @@ function resetGame() {
     
     // Update the state of the Undo button
     updateUndoButton();
+
+    // Reset the lastMove reference
+    lastMove = null;
+
+    // Remove 'last-move' class from all cells
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('last-move');
+    });
     
     // Log the game reset for debugging purposes
     log('Game reset');
@@ -213,14 +215,25 @@ function saveMove(row, col) {
  */
 function undo() {
     if (moveHistory.length > 0) {
-        const lastMove = moveHistory.pop();
+        lastMove = moveHistory.pop();
         board[lastMove.row][lastMove.col] = EMPTY;
+        
+        // Remove the stone and highlight from the last move
+        const cell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
+        cell.classList.remove('black', 'white', 'last-move');
+
+        // Update the lastMove reference
+        lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
+
+        // If there's a previous move, highlight it
+        if (lastMove) {
+            highlightLastMove(lastMove.row, lastMove.col);
+        }
 
         // Switch back to the player who made the last move
         currentPlayer = lastMove.player;
 
         // Update the UI
-        updateBoard();
         updateStatus();
         updateUndoButton();
 
@@ -255,6 +268,48 @@ function updateBoard() {
  */
 function updateUndoButton() {
     undoButton.disabled = moveHistory.length === 0;
+}
+
+/**
+ * Place a stone on the board and update the game state
+ * @param {number} row - The row where the stone is placed
+ * @param {number} col - The column where the stone is placed
+ */
+function placeStone(row, col) {
+    board[row][col] = currentPlayer;
+    updateCellAppearance(row, col);
+    highlightLastMove(row, col);
+    log(`Player ${currentPlayer} placed a stone at (${row}, ${col})`);
+}
+
+/**
+ * Update the appearance of a cell on the board
+ * @param {number} row - The row of the cell to update
+ * @param {number} col - The column of the cell to update
+ */
+function updateCellAppearance(row, col) {
+    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    cell.classList.add(currentPlayer === BLACK ? 'black' : 'white');
+}
+
+/**
+ * Highlight the last moved stone and remove highlight from the previous one
+ * @param {number} row - The row of the last move
+ * @param {number} col - The column of the last move
+ */
+function highlightLastMove(row, col) {
+    // Remove highlight from the previous last move
+    if (lastMove) {
+        const prevCell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
+        prevCell.classList.remove('last-move');
+    }
+
+    // Add highlight to the new last move
+    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    cell.classList.add('last-move');
+
+    // Update the lastMove reference
+    lastMove = { row, col };
 }
 
 
