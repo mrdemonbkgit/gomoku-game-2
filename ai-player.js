@@ -37,9 +37,29 @@ class AIPlayer {
      * @returns {Object} The chosen move as {row, col}
      */
     makeRandomMove(board) {
-        // Implementation will be added later
-        console.log('Random move not yet implemented');
-        return null;
+        const emptyCells = this.findEmptyCells(board);
+        if (emptyCells.length === 0) {
+            return null; // No moves available
+        }
+        const randomIndex = Math.floor(Math.random() * emptyCells.length);
+        return emptyCells[randomIndex];
+    }
+
+    /**
+     * Find all empty cells on the board
+     * @param {Array<Array<number>>} board - The current game board
+     * @returns {Array<Object>} Array of empty cells as {row, col}
+     */
+    findEmptyCells(board) {
+        const emptyCells = [];
+        for (let row = 0; row < board.length; row++) {
+            for (let col = 0; col < board[row].length; col++) {
+                if (board[row][col] === 0) { // Assuming 0 represents an empty cell
+                    emptyCells.push({ row, col });
+                }
+            }
+        }
+        return emptyCells;
     }
 
     /**

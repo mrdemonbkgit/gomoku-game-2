@@ -7,17 +7,29 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="game-container">
-        <h1>Gomoku Game</h1>
-        <div id="status"></div>
-        <div id="board"></div>
-        <div id="controls">
-            <button id="undo">Undo</button>
-            <button id="new-game">New Game</button>
+    <h1>Gomoku Game</h1>
+    <div id="game-options">
+        <label for="game-mode">Game Mode:</label>
+        <select id="game-mode">
+            <option value="human">Human vs Human</option>
+            <option value="ai">Human vs AI</option>
+        </select>
+        
+        <div id="ai-options" style="display: none;">
+            <label for="ai-difficulty">AI Difficulty:</label>
+            <select id="ai-difficulty">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
         </div>
-        <div class="cell" data-row="${row}" data-col="${col}"></div>
     </div>
-    <script src="script.js"></script>
+    <div id="status"></div>
+    <div id="board"></div>
+    <div id="controls">
+        <button id="new-game">New Game</button>
+        <button id="undo">Undo</button>
+    </div>
     <script type="module" src="script.js"></script>
 </body>
 </html>

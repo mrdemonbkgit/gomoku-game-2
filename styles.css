@@ -91,3 +91,20 @@ button:disabled {
         opacity: 0.8;
     }
 }
+
+#game-options {
+    margin-bottom: 20px;
+}
+
+#game-options label, #game-options select {
+    margin-right: 10px;
+}
+
+#ai-options {
+    margin-top: 10px;
+}
+
+select {
+    padding: 5px;
+    font-size: 16px;
+}

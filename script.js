@@ -18,12 +18,18 @@ let currentPlayer = BLACK; // Current player (starts with Black)
 let gameOver = false; // Flag to indicate if the game has ended
 let moveHistory = [];
 let lastMove = null;
+let gameMode = 'human'; // 'human' or 'ai'
+let aiPlayer = null;
+let aiDifficulty = 'easy';
 
 // DOM elements
 const boardElement = document.getElementById('board');
 const statusElement = document.getElementById('status');
 const newGameButton = document.getElementById('new-game');
 const undoButton = document.getElementById('undo');
+const gameModeSelect = document.getElementById('game-mode');
+const aiOptionsDiv = document.getElementById('ai-options');
+const aiDifficultySelect = document.getElementById('ai-difficulty');
 
 /**
  * Logging function for debugging
@@ -62,38 +68,54 @@ function initializeBoard() {
  * @param {Event} event - The click event object
  */
 function handleCellClick(event) {
-    // If the game is over, ignore any further clicks
-    if (gameOver) return;
+    if (gameOver || (gameMode === 'ai' && currentPlayer !== BLACK)) return;
 
-    // Extract row and column from the clicked cell's data attributes
     const row = parseInt(event.target.dataset.row);
     const col = parseInt(event.target.dataset.col);
 
-    // Check if the clicked cell is empty
     if (board[row][col] === EMPTY) {
-        // Place the current player's stone on the board
-        placeStone(row, col);
+        makeMove(row, col);
 
-        // Save the move to history for the undo feature
-        saveMove(row, col);
-
-        // Check if the current move results in a win
-        if (checkWin(row, col)) {
-            gameOver = true;
-            statusElement.textContent = `Player ${currentPlayer === BLACK ? 'Black' : 'White'} wins!`;
-            log(`Player ${currentPlayer} wins`);
-        } 
-        // If not a win, check if it's a draw
-        else if (checkDraw()) {
-            gameOver = true;
-            statusElement.textContent = 'It\'s a draw!';
-            log('Game ended in a draw');
-        } 
-        // If neither win nor draw, switch to the other player
-        else {
-            currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
-            updateStatus();
+        if (!gameOver && gameMode === 'ai') {
+            // AI's turn
+            setTimeout(makeAIMove, 500); // Add a small delay for better UX
         }
+    }
+}
+
+/**
+ * Makes a move for the AI player.
+ */
+function makeAIMove() {
+    const move = aiPlayer.makeMove(board);
+    if (move) {
+        makeMove(move.row, move.col);
+    }
+}
+
+/**
+ * Makes a move in the game by placing a stone at the specified row and column.
+ * Updates the game status and checks for a win or draw.
+ *
+ * @param {number} row - The row index of the move.
+ * @param {number} col - The column index of the move.
+ * @returns {void}
+ */
+function makeMove(row, col) {
+    placeStone(row, col);
+    saveMove(row, col);
+
+    if (checkWin(row, col)) {
+        gameOver = true;
+        statusElement.textContent = `Player ${currentPlayer === BLACK ? 'Black' : 'White'} wins!`;
+        log(`Player ${currentPlayer} wins`);
+    } else if (checkDraw()) {
+        gameOver = true;
+        statusElement.textContent = 'It\'s a draw!';
+        log('Game ended in a draw');
+    } else {
+        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+        updateStatus();
     }
 }
 
@@ -155,7 +177,11 @@ function checkDraw() {
  * Update the status display
  */
 function updateStatus() {
-    statusElement.textContent = `Current player: ${currentPlayer === BLACK ? 'Black' : 'White'}`;
+    if (gameMode === 'human' || (gameMode === 'ai' && currentPlayer === BLACK)) {
+        statusElement.textContent = `Current player: ${currentPlayer === BLACK ? 'Black' : 'White'}`;
+    } else {
+        statusElement.textContent = "AI is thinking...";
+    }
 }
 
 /**
@@ -189,8 +215,27 @@ function resetGame() {
     // Update the state of the Undo button
     updateUndoButton();
 
+    if (gameMode === 'ai') {
+        aiPlayer = new AIPlayer(aiDifficulty, WHITE);
+        statusElement.textContent = "Your turn (Black)";
+    } else {
+        aiPlayer = null;
+        statusElement.textContent = "Current player: Black";
+    }
+
     // Log the game reset for debugging purposes
     log('Game reset');
+}
+
+/**
+ * Toggles the game mode between 'human' and 'ai'.
+ * If the current game mode is 'human', it changes it to 'ai',
+ * and if the current game mode is 'ai', it changes it to 'human'.
+ * It also resets the game.
+ */
+function toggleGameMode() {
+    gameMode = gameMode === 'human' ? 'ai' : 'human';
+    resetGame();
 }
 
 /**
@@ -214,12 +259,23 @@ function saveMove(row, col) {
  */
 function undo() {
     if (moveHistory.length > 0) {
-        const moveToUndo = moveHistory.pop();
-        board[moveToUndo.row][moveToUndo.col] = EMPTY;
+        // Undo the last move (AI's move in AI mode)
+        lastMove = moveHistory.pop();
+        board[lastMove.row][lastMove.col] = EMPTY;
         
         // Remove the stone and highlight from the undone move
-        const cell = document.querySelector(`.cell[data-row="${moveToUndo.row}"][data-col="${moveToUndo.col}"]`);
+        const cell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
         cell.classList.remove('black', 'white', 'last-move');
+
+        // If in AI mode and there's another move, undo the human's move too
+        if (gameMode === 'ai' && moveHistory.length > 0) {
+            const humanMove = moveHistory.pop();
+            board[humanMove.row][humanMove.col] = EMPTY;
+            
+            // Remove the stone and highlight from the human's move
+            const humanCell = document.querySelector(`.cell[data-row="${humanMove.row}"][data-col="${humanMove.col}"]`);
+            humanCell.classList.remove('black', 'white', 'last-move');
+        }
 
         // Update the lastMove reference
         lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
@@ -227,7 +283,7 @@ function undo() {
         // If there's a previous move, highlight it
         if (lastMove) {
             highlightLastMove(lastMove.row, lastMove.col);
-            // Switch back to the player who made the last remaining move
+            // Set the current player to the opposite of the last move's player
             currentPlayer = lastMove.player === BLACK ? WHITE : BLACK;
         } else {
             // If no moves left, set currentPlayer back to BLACK (starting player)
@@ -243,10 +299,9 @@ function undo() {
             gameOver = false;
         }
 
-        log('Move undone');
+        log('Move(s) undone');
     }
 }
-
 /**
  * Update the visual board based on the current game state
  */
@@ -313,12 +368,31 @@ function highlightLastMove(row, col) {
     lastMove = { row, col };
 }
 
+function handleGameModeChange() {
+    gameMode = gameModeSelect.value;
+    aiOptionsDiv.style.display = gameMode === 'ai' ? 'block' : 'none';
+    resetGame();
+}
 
-// Event listener for the New Game button
-newGameButton.addEventListener('click', resetGame);
-undoButton.addEventListener('click', undo);
+function handleAIDifficultyChange() {
+    aiDifficulty = aiDifficultySelect.value;
+    if (gameMode === 'ai' && aiPlayer) {
+        aiPlayer.difficulty = aiDifficulty;
+    }
+}
 
-// Initialize the game
-initializeBoard();
-updateStatus();
-log('Game started');
+
+function initializeGame() {
+    initializeBoard();
+    setupEventListeners();
+    resetGame();
+}
+
+function setupEventListeners() {
+    newGameButton.addEventListener('click', resetGame);
+    undoButton.addEventListener('click', undo);
+    gameModeSelect.addEventListener('change', handleGameModeChange);
+    aiDifficultySelect.addEventListener('change', handleAIDifficultyChange);
+}
+
+initializeGame();
