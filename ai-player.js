@@ -15,6 +15,7 @@ class AIPlayer {
         this.playerColor = playerColor;
         log(LOG_AI, 'AI player created', { difficulty, playerColor });
     }
+    
 
     /**
      * Make a move based on the current difficulty level
@@ -295,10 +296,8 @@ class AIPlayer {
      * @param {Array<Array<number>>} board - The current game board
      * @returns {number} The score of the current board state
      */
-    evaluateBoard(board) {
-        log(LOG_AI, 'Board evaluation not yet implemented');
-        // TODO: Implement board evaluation
-        return 0;
+    evaluateBoard(board, playerColor) {
+        // Implementation will go here
     }
 }
 

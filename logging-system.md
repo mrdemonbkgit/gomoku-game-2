@@ -1,7 +1,3 @@
-Here’s the content formatted into Markdown:
-
----
-
 # Gomoku Game Logging Rules
 
 ## Logging System
@@ -60,5 +56,3 @@ log(LOG_ERROR, 'Invalid move attempt', { player: currentPlayer, row, col });
 - Avoid logging sensitive information.
 
 By following these logging rules, we can maintain a consistent and helpful debugging system throughout the development and maintenance of the Gomoku game.
-
----
