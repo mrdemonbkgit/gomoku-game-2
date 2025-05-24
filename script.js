@@ -277,11 +277,11 @@ function saveMove(row, col) {
 function undo() {
     if (moveHistory.length > 0) {
         // Undo the last move (AI's move in AI mode)
-        const lastMove = moveHistory.pop();
-        board[lastMove.row][lastMove.col] = EMPTY;
-        
+        const lastMoveEntry = moveHistory.pop();
+        board[lastMoveEntry.row][lastMoveEntry.col] = EMPTY;
+
         // Remove the stone and highlight from the undone move
-        const cell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
+        const cell = document.querySelector(`.cell[data-row="${lastMoveEntry.row}"][data-col="${lastMoveEntry.col}"]`);
         cell.classList.remove('black', 'white', 'last-move');
 
         let undoneMovesCount = 1;
