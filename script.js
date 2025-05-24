@@ -28,14 +28,14 @@ let gameMode = 'human'; // 'human' or 'ai'
 let aiPlayer = null;
 let aiDifficulty = 'easy';
 
-// DOM elements
-const boardElement = document.getElementById('board');
-const statusElement = document.getElementById('status');
-const newGameButton = document.getElementById('new-game');
-const undoButton = document.getElementById('undo');
-const gameModeSelect = document.getElementById('game-mode');
-const aiOptionsDiv = document.getElementById('ai-options');
-const aiDifficultySelect = document.getElementById('ai-difficulty');
+// DOM elements (may be undefined in non-browser environments)
+const boardElement = typeof document !== 'undefined' ? document.getElementById('board') : null;
+const statusElement = typeof document !== 'undefined' ? document.getElementById('status') : null;
+const newGameButton = typeof document !== 'undefined' ? document.getElementById('new-game') : null;
+const undoButton = typeof document !== 'undefined' ? document.getElementById('undo') : null;
+const gameModeSelect = typeof document !== 'undefined' ? document.getElementById('game-mode') : null;
+const aiOptionsDiv = typeof document !== 'undefined' ? document.getElementById('ai-options') : null;
+const aiDifficultySelect = typeof document !== 'undefined' ? document.getElementById('ai-difficulty') : null;
 
 /**
  * Enhanced logging function for debugging
@@ -62,15 +62,17 @@ function initializeBoard() {
     // Create a 2D array filled with EMPTY cells
     board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(EMPTY));
 
-    // Create the visual board using DOM elements
-    for (let i = 0; i < BOARD_SIZE; i++) {
-        for (let j = 0; j < BOARD_SIZE; j++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            cell.dataset.row = i;
-            cell.dataset.col = j;
-            cell.addEventListener('click', handleCellClick);
-            boardElement.appendChild(cell);
+    if (boardElement) {
+        // Create the visual board using DOM elements
+        for (let i = 0; i < BOARD_SIZE; i++) {
+            for (let j = 0; j < BOARD_SIZE; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = i;
+                cell.dataset.col = j;
+                cell.addEventListener('click', handleCellClick);
+                boardElement.appendChild(cell);
+            }
         }
     }
     log(LOG_GAME, 'Board initialized', { boardSize: BOARD_SIZE });
@@ -127,11 +129,15 @@ function makeMove(row, col) {
 
     if (checkWin(row, col)) {
         gameOver = true;
-        statusElement.textContent = `Player ${currentPlayer === BLACK ? 'Black' : 'White'} wins!`;
+        if (statusElement) {
+            statusElement.textContent = `Player ${currentPlayer === BLACK ? 'Black' : 'White'} wins!`;
+        }
         log(LOG_GAME, 'Game ended', { winner: currentPlayer === BLACK ? 'Black' : 'White' });
     } else if (checkDraw()) {
         gameOver = true;
-        statusElement.textContent = 'It\'s a draw!';
+        if (statusElement) {
+            statusElement.textContent = 'It\'s a draw!';
+        }
         log(LOG_GAME, 'Game ended in a draw');
     } else {
         currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
@@ -204,6 +210,10 @@ function checkDraw() {
  * Update the status display
  */
 function updateStatus() {
+    if (!statusElement) {
+        log(LOG_GAME, 'Status updated', { currentPlayer: currentPlayer === BLACK ? 'Black' : 'White' });
+        return;
+    }
     if (gameMode === 'human' || (gameMode === 'ai' && currentPlayer === BLACK)) {
         statusElement.textContent = `Current player: ${currentPlayer === BLACK ? 'Black' : 'White'}`;
     } else {
@@ -235,20 +245,26 @@ function resetGame() {
     // Update the game status display
     updateStatus();
 
-    // Remove stone classes and last-move highlight from all cells
-    document.querySelectorAll('.cell').forEach(cell => {
-        cell.classList.remove('black', 'white', 'last-move');
-    });
+    // Remove stone classes and last-move highlight from all cells if DOM is available
+    if (typeof document !== 'undefined') {
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.classList.remove('black', 'white', 'last-move');
+        });
+    }
 
     // Update the state of the Undo button
     updateUndoButton();
 
     if (gameMode === 'ai') {
         aiPlayer = new AIPlayer(aiDifficulty, WHITE);
-        statusElement.textContent = "Your turn (Black)";
+        if (statusElement) {
+            statusElement.textContent = "Your turn (Black)";
+        }
     } else {
         aiPlayer = null;
-        statusElement.textContent = "Current player: Black";
+        if (statusElement) {
+            statusElement.textContent = "Current player: Black";
+        }
     }
 
     log(LOG_GAME, 'Game reset', { gameMode, aiDifficulty });
@@ -277,12 +293,16 @@ function saveMove(row, col) {
 function undo() {
     if (moveHistory.length > 0) {
         // Undo the last move (AI's move in AI mode)
-        const lastMove = moveHistory.pop();
-        board[lastMove.row][lastMove.col] = EMPTY;
-        
+        const lastMoveRecord = moveHistory.pop();
+        board[lastMoveRecord.row][lastMoveRecord.col] = EMPTY;
+
         // Remove the stone and highlight from the undone move
-        const cell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
-        cell.classList.remove('black', 'white', 'last-move');
+        if (typeof document !== 'undefined') {
+            const cell = document.querySelector(`.cell[data-row="${lastMoveRecord.row}"][data-col="${lastMoveRecord.col}"]`);
+            if (cell) {
+                cell.classList.remove('black', 'white', 'last-move');
+            }
+        }
 
         let undoneMovesCount = 1;
 
@@ -292,8 +312,12 @@ function undo() {
             board[humanMove.row][humanMove.col] = EMPTY;
             
             // Remove the stone and highlight from the human's move
-            const humanCell = document.querySelector(`.cell[data-row="${humanMove.row}"][data-col="${humanMove.col}"]`);
-            humanCell.classList.remove('black', 'white', 'last-move');
+            if (typeof document !== 'undefined') {
+                const humanCell = document.querySelector(`.cell[data-row="${humanMove.row}"][data-col="${humanMove.col}"]`);
+                if (humanCell) {
+                    humanCell.classList.remove('black', 'white', 'last-move');
+                }
+            }
 
             undoneMovesCount = 2;
         }
@@ -303,7 +327,7 @@ function undo() {
 
         // If there's a previous move, highlight it
         if (lastMove) {
-            highlightLastMove(lastMove.row, lastMove.col);
+            highlightLastMove(lastMove.row, lastMove.col, lastMove.player);
             // Set the current player to the opposite of the last move's player
             currentPlayer = lastMove.player === BLACK ? WHITE : BLACK;
         } else {
@@ -346,7 +370,9 @@ function updateBoard() {
  * Update the state of Undo button
  */
 function updateUndoButton() {
-    undoButton.disabled = moveHistory.length === 0;
+    if (undoButton) {
+        undoButton.disabled = moveHistory.length === 0;
+    }
     log(LOG_GAME, 'Undo button state updated', { enabled: moveHistory.length > 0 });
 }
 
@@ -358,7 +384,7 @@ function updateUndoButton() {
 function placeStone(row, col) {
     board[row][col] = currentPlayer;
     updateCellAppearance(row, col);
-    highlightLastMove(row, col);
+    highlightLastMove(row, col, currentPlayer);
     log(LOG_MOVE, 'Stone placed', { player: currentPlayer, row, col });
 }
 
@@ -368,8 +394,11 @@ function placeStone(row, col) {
  * @param {number} col - The column of the cell to update
  */
 function updateCellAppearance(row, col) {
+    if (typeof document === 'undefined') return;
     const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-    cell.classList.add(currentPlayer === BLACK ? 'black' : 'white');
+    if (cell) {
+        cell.classList.add(currentPlayer === BLACK ? 'black' : 'white');
+    }
     log(LOG_GAME, 'Cell appearance updated', { row, col, player: currentPlayer });
 }
 
@@ -377,20 +406,27 @@ function updateCellAppearance(row, col) {
  * Highlight the last moved stone and remove highlight from the previous one
  * @param {number} row - The row of the last move
  * @param {number} col - The column of the last move
- */
-function highlightLastMove(row, col) {
+ * @param {number} [player=currentPlayer] - The player who made the move
+*/
+function highlightLastMove(row, col, player = currentPlayer) {
     // Remove highlight from the previous last move
-    if (lastMove) {
+    if (lastMove && typeof document !== 'undefined') {
         const prevCell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
-        prevCell.classList.remove('last-move');
+        if (prevCell) {
+            prevCell.classList.remove('last-move');
+        }
     }
 
     // Add highlight to the new last move
-    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-    cell.classList.add('last-move');
+    if (typeof document !== 'undefined') {
+        const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        if (cell) {
+            cell.classList.add('last-move');
+        }
+    }
 
     // Update the lastMove reference
-    lastMove = { row, col };
+    lastMove = { row, col, player };
     log(LOG_GAME, 'Last move highlighted', { row, col });
 }
 
@@ -424,8 +460,10 @@ function setupEventListeners() {
     log(LOG_GAME, 'Event listeners set up');
 }
 
-// Initialize the game
-initializeGame();
+// Initialize the game in browser environments
+if (typeof document !== 'undefined') {
+    initializeGame();
+}
 
 // Export necessary functions and constants for use in other modules
 export {
@@ -439,5 +477,7 @@ export {
     aiDifficulty,
     makeMove,
     checkWin,
-    updateStatus
+    updateStatus,
+    undo,
+    resetGame
 };
