@@ -1,58 +1,42 @@
-# Gomoku Game Logging Rules
+# Gomoku Logging Guide
 
-## Logging System
+The Gomoku project ships with a simple but structured logging helper to make debugging gameplay and AI behaviour easier. This document explains how to use it effectively.
 
-The Gomoku game uses a structured logging system to facilitate debugging and track game events. This system helps developers understand the game's flow and quickly identify issues.
-
-## Logging Function
-
-We use a custom log function with the following signature:
-
+## Logging API
 ```javascript
 log(category, message, data = null)
 ```
+- `category`: One of the exported category constants from `config.js` (`LOG_GAME`, `LOG_MOVE`, `LOG_AI`, `LOG_ERROR`).
+- `message`: A concise description of what happened.
+- `data`: Optional object with extra context. When provided it is stringified with indentation on the next line.
 
-- **category**: A string indicating the type of log entry.
-- **message**: A descriptive message about the event.
-- **data**: (Optional) An object containing relevant data for the log entry.
+Each log entry is emitted via `console.log` with an ISO timestamp and category prefix. Example output:
 
-## Log Categories
-
-We use the following categories for logging:
-
-- **LOG_GAME**: For general game events (e.g., initialization, reset).
-- **LOG_MOVE**: For player moves and board state changes.
-- **LOG_AI**: For AI-related events and decisions.
-- **LOG_ERROR**: For error conditions and unexpected states.
-
-## Logging Rules
-
-- Use appropriate categories for different types of events.
-- Log all significant game state changes (moves, resets, mode changes).
-- Log AI decisions and moves separately using the `LOG_AI` category.
-- Include relevant data with each log for context.
-- Use the `LOG_ERROR` category for any error conditions or unexpected states.
-
-## Examples
-
-```javascript
-log(LOG_GAME, 'Game initialized', { boardSize: BOARD_SIZE });
-log(LOG_MOVE, 'Player made a move', { player: currentPlayer, row, col });
-log(LOG_AI, 'AI calculating next move', { difficulty: aiDifficulty });
-log(LOG_ERROR, 'Invalid move attempt', { player: currentPlayer, row, col });
+```text
+[2025-09-16T22:45:10.318Z] [MOVE] Cell clicked
+{
+  "row": 7,
+  "col": 6,
+  "currentPlayer": 1
+}
 ```
 
-## Debugging Tips
+## Categories
+- `LOG_GAME`: High-level lifecycle events (initialisation, resets, status updates, undo availability).
+- `LOG_MOVE`: Board interactions such as clicks, stone placement, and move history changes.
+- `LOG_AI`: AI construction, decision making, chosen moves, and difficulty changes.
+- `LOG_ERROR`: Unexpected conditions, missing DOM nodes, or invalid state transitions.
 
-- You can filter console logs by categories if needed.
-- Consider adding a debug mode flag to enable/disable detailed logging in production.
-- When investigating issues, pay attention to the sequence of logs and the data provided in each log entry.
+## Usage Guidelines
+- Prefer the shared `log` helper over raw `console.log` so the format stays consistent.
+- Include enough contextual data to reproduce issues (row, col, player, difficulty, etc.).
+- Log both the action and the outcome where possible (for example: when a win condition is detected, log the direction that triggered it).
+- Emit `LOG_ERROR` entries before throwing exceptions to preserve details in browser consoles.
+- When adding new gameplay flows, keep related logs grouped under a single category to simplify filtering.
 
-## Implementation Notes
+## Working with the Console
+- Browsers allow filtering by text; searching for `[MOVE]` or `[AI]` quickly narrows to the relevant events.
+- Timestamps make it easy to correlate logs with user interactions. Capture screenshots or HAR files alongside logs when reporting issues.
+- If verbose logging becomes noisy in production builds, introduce a feature flag around the `log` helper or wrap logs in environment checks.
 
-- The logging system is implemented in `config.js` and exported for use in other modules.
-- When adding new features or modifying existing ones, make sure to include appropriate log statements.
-- Keep logs informative but concise.
-- Avoid logging sensitive information.
-
-By following these logging rules, we can maintain a consistent and helpful debugging system throughout the development and maintenance of the Gomoku game.
+Sticking to these conventions keeps debugging predictable as the project grows.
