@@ -7,6 +7,8 @@ A browser-based implementation of Gomoku (Five in a Row) built with plain HTML, 
 - Turn-based play with win and draw detection after every move
 - Move history with undo support and last-move highlighting
 - Configurable game mode and AI difficulty directly from the UI
+- Rich visual polish including animated stone placement and win highlighting
+- Built-in dark mode and board grid toggles with preference persistence
 - Structured logging for gameplay, AI activity, and error diagnostics
 
 ## Quick Start
@@ -43,7 +45,13 @@ Both players share the same device and alternate placing stones. Undo removes on
 ## Status and Visual Feedback
 - `setStatus` centralises messaging and uses `data-state` attributes to drive styling in `styles.css`.
 - The current player or AI thinking state is reflected through both text and a colored indicator.
-- `highlightLastMove` ensures the most recent stone is visually distinct; when undoing, the previous move regains the highlight.
+- Stones animate into position and keep a soft glow on the last move so players can track momentum.
+- Winning sequences receive a pulsing ring highlight, and the previous glow is cleared for clarity.
+
+## Display Preferences
+- Dark mode can be toggled at any time; the setting persists via `localStorage` and respects system preferences until a manual override.
+- Grid lines can be hidden for a minimalist board; the toggle state persists between sessions.
+- Preference changes log under `LOG_GAME` to aid debugging UI report issues.
 
 ## Logging and Diagnostics
 - `config.js` exports a `log(category, message, data?)` helper used throughout the codebase.

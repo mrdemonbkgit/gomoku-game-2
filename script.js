@@ -23,6 +23,9 @@ let currentPlayer = BLACK; // Current player (starts with Black)
 let gameOver = false; // Flag to indicate if the game has ended
 let moveHistory = [];
 let lastMove = null;
+let winningSequence = [];
+let systemThemeMediaQuery = null;
+let storageAvailable = true;
 let gameMode = 'human'; // 'human' or 'ai'
 let aiPlayer = null;
 let aiDifficulty = 'easy';
@@ -38,6 +41,12 @@ const gameModeSelect = document.getElementById('game-mode');
 const aiOptionsDiv = document.getElementById('ai-options');
 const aiDifficultySelect = document.getElementById('ai-difficulty');
 
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const gridToggle = document.getElementById('grid-toggle');
+
+const THEME_STORAGE_KEY = 'gomoku-theme';
+const GRID_STORAGE_KEY = 'gomoku-grid-visible';
+
 function validateDomReferences() {
     const missingElements = [];
 
@@ -50,6 +59,8 @@ function validateDomReferences() {
     if (!gameModeSelect) missingElements.push('game-mode');
     if (!aiOptionsDiv) missingElements.push('ai-options');
     if (!aiDifficultySelect) missingElements.push('ai-difficulty');
+    if (!darkModeToggle) missingElements.push('dark-mode-toggle');
+    if (!gridToggle) missingElements.push('grid-toggle');
 
     if (missingElements.length > 0) {
         log(LOG_ERROR, 'Missing required DOM elements', { missingElements });
@@ -129,11 +140,13 @@ function makeMove(row, col) {
 
     log(LOG_MOVE, 'Move made', { player: currentPlayer, row, col });
 
-    if (checkWin(row, col)) {
+    const hasWon = checkWin(row, col);
+    if (hasWon) {
         gameOver = true;
+        highlightWinningSequence(winningSequence);
         const winningPlayer = currentPlayer === BLACK ? 'Black' : 'White';
         setStatus(`Player ${winningPlayer} wins!`, currentPlayer === BLACK ? 'black' : 'white');
-        log(LOG_GAME, 'Game ended', { winner: currentPlayer === BLACK ? 'Black' : 'White' });
+        log(LOG_GAME, 'Game ended', { winner: winningPlayer });
     } else if (checkDraw()) {
         gameOver = true;
         setStatus('It\'s a draw!', 'neutral');
@@ -148,49 +161,71 @@ function makeMove(row, col) {
  * Check for a win condition
  * @param {number} row - The row of the last placed stone
  * @param {number} col - The column of the last placed stone
- * @returns {boolean} True if the current player has won, false otherwise
+ * @returns {boolean} True if the move creates a five-stone line, false otherwise
  */
 function checkWin(row, col) {
-    // Directions to check: horizontal, vertical, diagonal, anti-diagonal
+    const result = determineWinningSequence(row, col);
+    if (result) {
+        winningSequence = result.sequence.map(position => ({ row: position.row, col: position.col }));
+        log(LOG_GAME, 'Win condition met', { row, col, direction: result.direction, sequence: winningSequence });
+        return true;
+    }
+
+    winningSequence = [];
+    return false;
+}
+
+/**
+ * Determine the winning sequence (if any) originating from the last move.
+ * @param {number} row - The row of the last placed stone
+ * @param {number} col - The column of the last placed stone
+ * @returns {{sequence: Array<{row: number, col: number}>, direction: [number, number]}|null}
+ */
+function determineWinningSequence(row, col) {
+    const player = board[row][col];
+    if (player === EMPTY) {
+        return null;
+    }
+
     const directions = [
         [1, 0], [0, 1], [1, 1], [1, -1]
     ];
 
     for (const [dx, dy] of directions) {
-        let count = 1; // Start with 1 for the current stone
-        // Check in both directions along the current line
-        count += countStones(row, col, dx, dy);
-        count += countStones(row, col, -dx, -dy);
+        const forward = collectLineCells(row, col, dx, dy, player);
+        const backward = collectLineCells(row, col, -dx, -dy, player);
+        const line = [{ row, col }, ...forward, ...backward];
 
-        if (count >= 5) {
-            log(LOG_GAME, 'Win condition met', { row, col, direction: [dx, dy] });
-            return true; // Win condition met
+        if (line.length >= 5) {
+            return { sequence: line, direction: [dx, dy] };
         }
     }
 
-    return false;
+    return null;
 }
 
+
 /**
- * Count consecutive stones in a direction
+ * Collect consecutive stones for a player in a given direction.
  * @param {number} row - Starting row
  * @param {number} col - Starting column
  * @param {number} dx - X direction (-1, 0, or 1)
  * @param {number} dy - Y direction (-1, 0, or 1)
- * @returns {number} The count of consecutive stones of the current player
+ * @param {number} player - The player identifier
+ * @returns {Array<{row: number, col: number}>} Collected cells in the specified direction
  */
-function countStones(row, col, dx, dy) {
-    let count = 0;
+function collectLineCells(row, col, dx, dy, player) {
+    const cells = [];
     let x = row + dx;
     let y = col + dy;
 
-    while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === currentPlayer) {
-        count++;
+    while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === player) {
+        cells.push({ row: x, col: y });
         x += dx;
         y += dy;
     }
 
-    return count;
+    return cells;
 }
 
 /**
@@ -251,6 +286,8 @@ function updateStatus() {
 function resetGame() {
     syncAIOptionsVisibility();
 
+    clearWinningHighlight();
+
     // Reset the game board to all empty cells
     board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(EMPTY));
 
@@ -266,9 +303,9 @@ function resetGame() {
     // Reset the lastMove reference
     lastMove = null;
     
-    // Remove stone classes and last-move highlight from all cells
+    // Remove stone classes and highlights from all cells
     document.querySelectorAll('.cell').forEach(cell => {
-        cell.classList.remove('black', 'white', 'last-move');
+        cell.classList.remove('black', 'white', 'last-move', 'winning', 'placed');
     });
 
     // Update the state of the Undo button
@@ -308,6 +345,7 @@ function saveMove(row, col) {
  */
 function undo() {
     if (moveHistory.length > 0) {
+        clearWinningHighlight();
         // Undo the last move (AI's move in AI mode)
         const lastMoveEntry = moveHistory.pop();
         board[lastMoveEntry.row][lastMoveEntry.col] = EMPTY;
@@ -315,7 +353,7 @@ function undo() {
         // Remove the stone and highlight from the undone move
         const cell = document.querySelector(`.cell[data-row="${lastMoveEntry.row}"][data-col="${lastMoveEntry.col}"]`);
         if (cell) {
-            cell.classList.remove('black', 'white', 'last-move');
+            cell.classList.remove('black', 'white', 'last-move', 'winning', 'placed');
         }
 
         let undoneMovesCount = 1;
@@ -328,7 +366,7 @@ function undo() {
             // Remove the stone and highlight from the human's move
             const humanCell = document.querySelector(`.cell[data-row="${humanMove.row}"][data-col="${humanMove.col}"]`);
             if (humanCell) {
-                humanCell.classList.remove('black', 'white', 'last-move');
+                humanCell.classList.remove('black', 'white', 'last-move', 'winning', 'placed');
             }
 
             undoneMovesCount = 2;
@@ -368,13 +406,27 @@ function updateBoard() {
     cells.forEach((cell, index) => {
         const row = Math.floor(index / BOARD_SIZE);
         const col = index % BOARD_SIZE;
-        cell.classList.remove('black', 'white');
+        cell.classList.remove('black', 'white', 'winning', 'placed');
         if (board && board[row] && board[row][col] === BLACK) {
             cell.classList.add('black');
         } else if (board && board[row] && board[row][col] === WHITE) {
             cell.classList.add('white');
         }
     });
+
+    if (winningSequence.length > 0) {
+        winningSequence.forEach(position => {
+            const cell = document.querySelector(`.cell[data-row="${position.row}"][data-col="${position.col}"]`);
+            if (cell) {
+                cell.classList.add('winning');
+            }
+        });
+    }
+
+    if (lastMove) {
+        highlightLastMove(lastMove.row, lastMove.col);
+    }
+
     log(LOG_GAME, 'Board visually updated');
 }
 
@@ -393,7 +445,13 @@ function updateUndoButton() {
  */
 function placeStone(row, col) {
     board[row][col] = currentPlayer;
-    updateCellAppearance(row, col);
+    const cell = updateCellAppearance(row, col);
+    if (cell) {
+        cell.classList.add('placed');
+        setTimeout(() => {
+            cell.classList.remove('placed');
+        }, 320);
+    }
     highlightLastMove(row, col);
     log(LOG_MOVE, 'Stone placed', { player: currentPlayer, row, col });
 }
@@ -407,10 +465,11 @@ function updateCellAppearance(row, col) {
     const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
     if (!cell) {
         log(LOG_ERROR, 'Attempted to update a missing cell', { row, col });
-        return;
+        return null;
     }
     cell.classList.add(currentPlayer === BLACK ? 'black' : 'white');
     log(LOG_GAME, 'Cell appearance updated', { row, col, player: currentPlayer });
+    return cell;
 }
 
 /**
@@ -441,6 +500,134 @@ function highlightLastMove(row, col) {
     log(LOG_GAME, 'Last move highlighted', { row, col });
 }
 
+function highlightWinningSequence(sequence) {
+    if (!Array.isArray(sequence) || sequence.length === 0) {
+        return;
+    }
+    clearWinningHighlight();
+    sequence.forEach(position => {
+        const cell = document.querySelector(`.cell[data-row="${position.row}"][data-col="${position.col}"]`);
+        if (cell) {
+            cell.classList.remove('last-move', 'placed');
+            cell.classList.add('winning');
+        }
+    });
+    winningSequence = sequence.map(position => ({ row: position.row, col: position.col }));
+    lastMove = null;
+    log(LOG_GAME, 'Winning sequence highlighted', { length: sequence.length });
+}
+
+function clearWinningHighlight() {
+    if (!Array.isArray(winningSequence) || winningSequence.length === 0) {
+        return;
+    }
+    winningSequence.forEach(position => {
+        const cell = document.querySelector(`.cell[data-row="${position.row}"][data-col="${position.col}"]`);
+        if (cell) {
+            cell.classList.remove('winning', 'placed');
+        }
+    });
+    winningSequence = [];
+}
+
+function applyTheme(theme, options = {}) {
+    const normalized = theme === 'dark' ? 'dark' : 'light';
+    if (normalized === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+    if (darkModeToggle) {
+        darkModeToggle.checked = normalized === 'dark';
+    }
+    if (!options.silent) {
+        log(LOG_GAME, 'Theme applied', { theme: normalized });
+    }
+}
+
+function handleThemeToggle(event) {
+    const theme = event.target.checked ? 'dark' : 'light';
+    applyTheme(theme);
+    persistSetting(THEME_STORAGE_KEY, theme);
+}
+
+function applyGridVisibility(showGrid, options = {}) {
+    const shouldShow = Boolean(showGrid);
+    if (boardElement) {
+        boardElement.classList.toggle('grid-hidden', !shouldShow);
+    }
+    if (gridToggle) {
+        gridToggle.checked = shouldShow;
+    }
+    if (!options.silent) {
+        log(LOG_GAME, 'Grid visibility updated', { visible: shouldShow });
+    }
+}
+
+function handleGridToggle(event) {
+    const showGrid = event.target.checked;
+    applyGridVisibility(showGrid);
+    persistSetting(GRID_STORAGE_KEY, showGrid ? 'on' : 'off');
+}
+
+function persistSetting(key, value) {
+    if (!storageAvailable) {
+        return;
+    }
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (error) {
+        storageAvailable = false;
+        log(LOG_ERROR, 'Failed to persist setting', { key, error: error.message });
+    }
+}
+
+function readSetting(key) {
+    if (!storageAvailable) {
+        return null;
+    }
+    try {
+        return window.localStorage.getItem(key);
+    } catch (error) {
+        storageAvailable = false;
+        log(LOG_ERROR, 'Failed to read setting', { key, error: error.message });
+        return null;
+    }
+}
+
+function initializePreferences() {
+    const storedTheme = readSetting(THEME_STORAGE_KEY);
+    if (storedTheme) {
+        applyTheme(storedTheme, { silent: true });
+    } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(prefersDark ? 'dark' : 'light', { silent: true });
+        setupSystemThemeListener();
+    }
+
+    const storedGrid = readSetting(GRID_STORAGE_KEY);
+    if (storedGrid) {
+        applyGridVisibility(storedGrid !== 'off', { silent: true });
+    } else {
+        applyGridVisibility(true, { silent: true });
+    }
+}
+
+function setupSystemThemeListener() {
+    if (!window.matchMedia) {
+        return;
+    }
+    systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = event => {
+        const storedPreference = readSetting(THEME_STORAGE_KEY);
+        if (storedPreference) {
+            return;
+        }
+        applyTheme(event.matches ? 'dark' : 'light');
+    };
+    systemThemeMediaQuery.addEventListener('change', handleChange);
+}
+
 function handleGameModeChange() {
     gameMode = gameModeSelect.value;
     syncAIOptionsVisibility();
@@ -459,6 +646,7 @@ function handleAIDifficultyChange() {
 function initializeGame() {
     validateDomReferences();
     initializeBoard();
+    initializePreferences();
     setupEventListeners();
     syncAIOptionsVisibility();
     resetGame();
@@ -470,6 +658,12 @@ function setupEventListeners() {
     undoButton.addEventListener('click', undo);
     gameModeSelect.addEventListener('change', handleGameModeChange);
     aiDifficultySelect.addEventListener('change', handleAIDifficultyChange);
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('change', handleThemeToggle);
+    }
+    if (gridToggle) {
+        gridToggle.addEventListener('change', handleGridToggle);
+    }
     log(LOG_GAME, 'Event listeners set up');
 }
 

@@ -31,11 +31,25 @@
                         <option value="hard">Hard</option>
                     </select>
                 </div>
+
+                <div class="field toggle-field" aria-label="Display preferences">
+                    <span class="field-label">Display</span>
+                    <label class="toggle" for="dark-mode-toggle">
+                        <input type="checkbox" id="dark-mode-toggle" />
+                        <span class="toggle-slider" aria-hidden="true"></span>
+                        <span class="toggle-text">Dark mode</span>
+                    </label>
+                    <label class="toggle" for="grid-toggle">
+                        <input type="checkbox" id="grid-toggle" checked />
+                        <span class="toggle-slider" aria-hidden="true"></span>
+                        <span class="toggle-text">Show grid</span>
+                    </label>
+                </div>
             </div>
 
             <div id="status" class="status" role="status" aria-live="polite">
                 <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
-                <span id="status-message" class="status-message">Setting up the board…</span>
+                <span id="status-message" class="status-message">Setting up the board...</span>
             </div>
 
             <div class="board-wrapper">
