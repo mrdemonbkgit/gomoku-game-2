@@ -50,7 +50,7 @@ log(LOG_ERROR, 'Invalid move attempt', { player: currentPlayer, row, col });
 
 ## Implementation Notes
 
-- The logging system is implemented in `script.js` and exported for use in other modules.
+- The logging system is implemented in `config.js` and exported for use in other modules.
 - When adding new features or modifying existing ones, make sure to include appropriate log statements.
 - Keep logs informative but concise.
 - Avoid logging sensitive information.

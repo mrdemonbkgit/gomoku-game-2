@@ -2,7 +2,7 @@
  * AIPlayer class for Gomoku game
  * This class encapsulates the logic for an AI opponent in the game
  */
-import { log, LOG_AI, EMPTY, BLACK, WHITE, BOARD_SIZE } from './script.js';
+import { log, LOG_AI, EMPTY, BLACK, WHITE, BOARD_SIZE } from './config.js';
 
 class AIPlayer {
     /**

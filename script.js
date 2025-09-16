@@ -4,19 +4,18 @@
  */
 
 import AIPlayer from './ai-player.js';
-
-// Constants
-const BOARD_SIZE = 15; // Size of the game board (15x15)
-const EMPTY = 0; // Represents an empty cell
-const BLACK = 1; // Represents a black stone
-const WHITE = 2; // Represents a white stone
-const MAX_HISTORY = 50; // Maximum number of moves to store in history
-
-// Logging categories
-export const LOG_GAME = 'GAME';
-export const LOG_MOVE = 'MOVE';
-export const LOG_AI = 'AI';
-export const LOG_ERROR = 'ERROR';
+import {
+    BOARD_SIZE,
+    EMPTY,
+    BLACK,
+    WHITE,
+    MAX_HISTORY,
+    LOG_GAME,
+    LOG_MOVE,
+    LOG_AI,
+    LOG_ERROR,
+    log
+} from './config.js';
 
 // Game state variables
 let board = []; // 2D array representing the game board
@@ -37,21 +36,21 @@ const gameModeSelect = document.getElementById('game-mode');
 const aiOptionsDiv = document.getElementById('ai-options');
 const aiDifficultySelect = document.getElementById('ai-difficulty');
 
-/**
- * Enhanced logging function for debugging
- * @param {string} category - The category of the log (e.g., 'MOVE', 'AI', 'GAME')
- * @param {string} message - The message to be logged
- * @param {Object} [data] - Optional data to be logged
- */
-export function log(category, message, data = null) {
-    const timestamp = new Date().toISOString();
-    let logMessage = `[${timestamp}] [${category}] ${message}`;
-    
-    if (data) {
-        logMessage += '\n' + JSON.stringify(data, null, 2);
+function validateDomReferences() {
+    const missingElements = [];
+
+    if (!boardElement) missingElements.push('board');
+    if (!statusElement) missingElements.push('status');
+    if (!newGameButton) missingElements.push('new-game');
+    if (!undoButton) missingElements.push('undo');
+    if (!gameModeSelect) missingElements.push('game-mode');
+    if (!aiOptionsDiv) missingElements.push('ai-options');
+    if (!aiDifficultySelect) missingElements.push('ai-difficulty');
+
+    if (missingElements.length > 0) {
+        log(LOG_ERROR, 'Missing required DOM elements', { missingElements });
+        throw new Error(`Required DOM elements are missing: ${missingElements.join(', ')}`);
     }
-    
-    console.log(logMessage);
 }
 
 /**
@@ -59,6 +58,7 @@ export function log(category, message, data = null) {
  * Creates the visual board and sets up the data structure
  */
 function initializeBoard() {
+    boardElement.innerHTML = '';
     // Create a 2D array filled with EMPTY cells
     board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(EMPTY));
 
@@ -282,7 +282,9 @@ function undo() {
 
         // Remove the stone and highlight from the undone move
         const cell = document.querySelector(`.cell[data-row="${lastMoveEntry.row}"][data-col="${lastMoveEntry.col}"]`);
-        cell.classList.remove('black', 'white', 'last-move');
+        if (cell) {
+            cell.classList.remove('black', 'white', 'last-move');
+        }
 
         let undoneMovesCount = 1;
 
@@ -290,10 +292,12 @@ function undo() {
         if (gameMode === 'ai' && moveHistory.length > 0) {
             const humanMove = moveHistory.pop();
             board[humanMove.row][humanMove.col] = EMPTY;
-            
+
             // Remove the stone and highlight from the human's move
             const humanCell = document.querySelector(`.cell[data-row="${humanMove.row}"][data-col="${humanMove.col}"]`);
-            humanCell.classList.remove('black', 'white', 'last-move');
+            if (humanCell) {
+                humanCell.classList.remove('black', 'white', 'last-move');
+            }
 
             undoneMovesCount = 2;
         }
@@ -369,6 +373,10 @@ function placeStone(row, col) {
  */
 function updateCellAppearance(row, col) {
     const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) {
+        log(LOG_ERROR, 'Attempted to update a missing cell', { row, col });
+        return;
+    }
     cell.classList.add(currentPlayer === BLACK ? 'black' : 'white');
     log(LOG_GAME, 'Cell appearance updated', { row, col, player: currentPlayer });
 }
@@ -382,11 +390,18 @@ function highlightLastMove(row, col) {
     // Remove highlight from the previous last move
     if (lastMove) {
         const prevCell = document.querySelector(`.cell[data-row="${lastMove.row}"][data-col="${lastMove.col}"]`);
-        prevCell.classList.remove('last-move');
+        if (prevCell) {
+            prevCell.classList.remove('last-move');
+        }
     }
 
     // Add highlight to the new last move
     const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    if (!cell) {
+        log(LOG_ERROR, 'Attempted to highlight a missing cell', { row, col });
+        lastMove = null;
+        return;
+    }
     cell.classList.add('last-move');
 
     // Update the lastMove reference
@@ -410,6 +425,7 @@ function handleAIDifficultyChange() {
 }
 
 function initializeGame() {
+    validateDomReferences();
     initializeBoard();
     setupEventListeners();
     resetGame();
@@ -424,8 +440,12 @@ function setupEventListeners() {
     log(LOG_GAME, 'Event listeners set up');
 }
 
-// Initialize the game
-initializeGame();
+// Initialize the game when the DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGame);
+} else {
+    initializeGame();
+}
 
 // Export necessary functions and constants for use in other modules
 export {
