@@ -29,7 +29,9 @@ let aiDifficulty = 'easy';
 
 // DOM elements
 const boardElement = document.getElementById('board');
-const statusElement = document.getElementById('status');
+const statusContainer = document.getElementById('status');
+const statusMessageElement = document.getElementById('status-message');
+const statusIndicatorElement = document.getElementById('status-indicator');
 const newGameButton = document.getElementById('new-game');
 const undoButton = document.getElementById('undo');
 const gameModeSelect = document.getElementById('game-mode');
@@ -40,7 +42,9 @@ function validateDomReferences() {
     const missingElements = [];
 
     if (!boardElement) missingElements.push('board');
-    if (!statusElement) missingElements.push('status');
+    if (!statusContainer) missingElements.push('status');
+    if (!statusMessageElement) missingElements.push('status-message');
+    if (!statusIndicatorElement) missingElements.push('status-indicator');
     if (!newGameButton) missingElements.push('new-game');
     if (!undoButton) missingElements.push('undo');
     if (!gameModeSelect) missingElements.push('game-mode');
@@ -127,11 +131,12 @@ function makeMove(row, col) {
 
     if (checkWin(row, col)) {
         gameOver = true;
-        statusElement.textContent = `Player ${currentPlayer === BLACK ? 'Black' : 'White'} wins!`;
+        const winningPlayer = currentPlayer === BLACK ? 'Black' : 'White';
+        setStatus(`Player ${winningPlayer} wins!`, currentPlayer === BLACK ? 'black' : 'white');
         log(LOG_GAME, 'Game ended', { winner: currentPlayer === BLACK ? 'Black' : 'White' });
     } else if (checkDraw()) {
         gameOver = true;
-        statusElement.textContent = 'It\'s a draw!';
+        setStatus('It\'s a draw!', 'neutral');
         log(LOG_GAME, 'Game ended in a draw');
     } else {
         currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
@@ -200,16 +205,43 @@ function checkDraw() {
     return isDraw;
 }
 
+function setStatus(message, indicatorState = 'neutral') {
+    if (statusMessageElement) {
+        statusMessageElement.textContent = message;
+    }
+    if (statusIndicatorElement) {
+        statusIndicatorElement.dataset.state = indicatorState || 'neutral';
+    }
+    if (statusContainer) {
+        statusContainer.dataset.state = indicatorState || 'neutral';
+    }
+}
+
 /**
  * Update the status display
  */
 function updateStatus() {
-    if (gameMode === 'human' || (gameMode === 'ai' && currentPlayer === BLACK)) {
-        statusElement.textContent = `Current player: ${currentPlayer === BLACK ? 'Black' : 'White'}`;
+    let message;
+    let indicatorState;
+
+    if (gameMode === 'human') {
+        const playerName = currentPlayer === BLACK ? 'Black' : 'White';
+        message = `Current player: ${playerName}`;
+        indicatorState = currentPlayer === BLACK ? 'black' : 'white';
+    } else if (currentPlayer === BLACK) {
+        message = 'Your turn (Black)';
+        indicatorState = 'black';
     } else {
-        statusElement.textContent = "AI is thinking...";
+        message = 'AI is thinking...';
+        indicatorState = 'ai';
     }
-    log(LOG_GAME, 'Status updated', { currentPlayer: currentPlayer === BLACK ? 'Black' : 'White' });
+
+    setStatus(message, indicatorState);
+    log(LOG_GAME, 'Status updated', {
+        message,
+        currentPlayer: currentPlayer === BLACK ? 'Black' : 'White',
+        gameMode
+    });
 }
 
 /**
@@ -217,9 +249,11 @@ function updateStatus() {
  * This function is called when the "New Game" button is clicked
  */
 function resetGame() {
+    syncAIOptionsVisibility();
+
     // Reset the game board to all empty cells
     board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(EMPTY));
-    
+
     // Set Black as the starting player
     currentPlayer = BLACK;
     
@@ -232,9 +266,6 @@ function resetGame() {
     // Reset the lastMove reference
     lastMove = null;
     
-    // Update the game status display
-    updateStatus();
-
     // Remove stone classes and last-move highlight from all cells
     document.querySelectorAll('.cell').forEach(cell => {
         cell.classList.remove('black', 'white', 'last-move');
@@ -245,11 +276,12 @@ function resetGame() {
 
     if (gameMode === 'ai') {
         aiPlayer = new AIPlayer(aiDifficulty, WHITE);
-        statusElement.textContent = "Your turn (Black)";
     } else {
         aiPlayer = null;
-        statusElement.textContent = "Current player: Black";
     }
+
+    // Update the game status display
+    updateStatus();
 
     log(LOG_GAME, 'Game reset', { gameMode, aiDifficulty });
 }
@@ -411,7 +443,7 @@ function highlightLastMove(row, col) {
 
 function handleGameModeChange() {
     gameMode = gameModeSelect.value;
-    aiOptionsDiv.style.display = gameMode === 'ai' ? 'block' : 'none';
+    syncAIOptionsVisibility();
     log(LOG_GAME, 'Game mode changed', { newMode: gameMode });
     resetGame();
 }
@@ -428,6 +460,7 @@ function initializeGame() {
     validateDomReferences();
     initializeBoard();
     setupEventListeners();
+    syncAIOptionsVisibility();
     resetGame();
     log(LOG_GAME, 'Game initialized');
 }
@@ -438,6 +471,13 @@ function setupEventListeners() {
     gameModeSelect.addEventListener('change', handleGameModeChange);
     aiDifficultySelect.addEventListener('change', handleAIDifficultyChange);
     log(LOG_GAME, 'Event listeners set up');
+}
+
+function syncAIOptionsVisibility() {
+    if (!aiOptionsDiv) return;
+    const shouldHide = gameMode !== 'ai';
+    aiOptionsDiv.hidden = shouldHide;
+    aiOptionsDiv.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
 }
 
 // Initialize the game when the DOM is ready
