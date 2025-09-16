@@ -1,73 +1,334 @@
 /**
  * AIPlayer class for Gomoku game
- * This class encapsulates the logic for an AI opponent in the game
+ * Provides adaptive opponents across easy, medium, and hard difficulties.
  */
 import { log, LOG_AI, EMPTY, BLACK, WHITE, BOARD_SIZE } from './config.js';
 
+const EASY_CANDIDATE_LIMIT = 12;
+const EASY_TOP_CHOICES = 3;
+const MEDIUM_CANDIDATE_LIMIT = 12;
+const MEDIUM_RESPONSE_LIMIT = 6;
+const HARD_CANDIDATE_LIMIT = 8;
+const HARD_SEARCH_DEPTH = 3;
+const WIN_SCORE = 1_000_000;
+
+const PATTERN_SCORES = {
+    five: WIN_SCORE,
+    openFour: 60000,
+    semiOpenFour: 15000,
+    openThree: 7000,
+    semiOpenThree: 2000,
+    openTwo: 800,
+    semiOpenTwo: 250
+};
+
 class AIPlayer {
-    /**
-     * Create an AI player
-     * @param {string} difficulty - The difficulty level of the AI ('easy', 'medium', or 'hard')
-     * @param {number} playerColor - The color of the AI player's stones (BLACK or WHITE)
-     */
     constructor(difficulty, playerColor) {
         this.difficulty = difficulty;
         this.playerColor = playerColor;
         log(LOG_AI, 'AI player created', { difficulty, playerColor });
     }
-    
 
-    /**
-     * Make a move based on the current difficulty level
-     * @param {Array<Array<number>>} board - The current game board
-     * @returns {Object} The chosen move as {row, col}
-     */
     makeMove(board) {
         if (!Array.isArray(board) || board.length !== BOARD_SIZE || board[0].length !== BOARD_SIZE) {
             throw new Error('Invalid board state');
         }
-        log(LOG_AI, 'AI is deciding move', { difficulty: this.difficulty });
-        let move;
+
+        log(LOG_AI, 'AI deciding move', { difficulty: this.difficulty });
         switch (this.difficulty) {
             case 'easy':
-                move = this.makeRandomMove(board);
-                break;
+                return this.makeEasyMove(board);
             case 'medium':
-                move = this.makeMediumMove(board);
-                break;
+                return this.makeMediumMove(board);
             case 'hard':
-                move = this.makeHardMove(board);
-                break;
+                return this.makeHardMove(board);
             default:
                 log(LOG_AI, 'Invalid difficulty level', { difficulty: this.difficulty });
                 throw new Error('Invalid difficulty level');
         }
-        log(LOG_AI, 'AI move decided', { move });
-        return move;
     }
 
-    /**
-     * Make a random move (for easy difficulty)
-     * @param {Array<Array<number>>} board - The current game board
-     * @returns {Object} The chosen move as {row, col}
-     */
-    makeRandomMove(board) {
-        const emptyCells = this.findEmptyCells(board);
-        if (emptyCells.length === 0) {
-            log(LOG_AI, 'No available moves');
-            return null; // No moves available
+    makeEasyMove(board) {
+        log(LOG_AI, 'Easy difficulty evaluating options');
+        const winningMove = this.findWinningMove(board, this.playerColor);
+        if (winningMove) {
+            log(LOG_AI, 'Easy difficulty finishing game', { move: winningMove });
+            return winningMove;
         }
-        const randomIndex = Math.floor(Math.random() * emptyCells.length);
-        const move = emptyCells[randomIndex];
-        log(LOG_AI, 'Random move selected', { move });
-        return move;
+
+        const opponent = this.getOpponentColor();
+        const blockingMove = this.findWinningMove(board, opponent);
+        if (blockingMove) {
+            log(LOG_AI, 'Easy difficulty blocking immediate threat', { move: blockingMove });
+            return blockingMove;
+        }
+
+        const ranked = this.prepareCandidates(board, EASY_CANDIDATE_LIMIT);
+        if (ranked.length > 0) {
+            const selection = ranked.slice(0, Math.min(EASY_TOP_CHOICES, ranked.length));
+            const choice = selection[Math.floor(Math.random() * selection.length)];
+            const move = { row: choice.row, col: choice.col };
+            log(LOG_AI, 'Easy difficulty selecting from top candidates', { move });
+            return move;
+        }
+
+        log(LOG_AI, 'Easy difficulty falling back to random move');
+        return this.makeRandomMove(board);
     }
 
-    /**
-     * Find all empty cells on the board
-     * @param {Array<Array<number>>} board - The current game board
-     * @returns {Array<Object>} Array of empty cells as {row, col}
-     */
+    makeMediumMove(board) {
+        log(LOG_AI, 'Medium difficulty evaluating multi-step options');
+        const winningMove = this.findWinningMove(board, this.playerColor);
+        if (winningMove) {
+            log(LOG_AI, 'Medium difficulty taking winning move', { move: winningMove });
+            return winningMove;
+        }
+
+        const opponent = this.getOpponentColor();
+        const blockingMove = this.findWinningMove(board, opponent);
+        if (blockingMove) {
+            log(LOG_AI, 'Medium difficulty blocking winning threat', { move: blockingMove });
+            return blockingMove;
+        }
+
+        const candidates = this.prepareCandidates(board, MEDIUM_CANDIDATE_LIMIT);
+        if (candidates.length === 0) {
+            return this.makeRandomMove(board);
+        }
+
+        let bestScore = -Infinity;
+        let bestMove = null;
+
+        for (const candidate of candidates) {
+            const { row, col } = candidate;
+            board[row][col] = this.playerColor;
+
+            let score;
+            if (this.checkWinningMove(board, row, col, this.playerColor)) {
+                score = WIN_SCORE;
+            } else {
+                const baseScore = this.evaluateBoard(board, this.playerColor);
+                const opponentReplies = this.prepareCandidatesForPlayer(board, opponent, MEDIUM_RESPONSE_LIMIT);
+                let worstReply = baseScore;
+                if (opponentReplies.length > 0) {
+                    worstReply = Infinity;
+                    for (const reply of opponentReplies) {
+                        const replyScore = this.evaluateMove(board, reply.row, reply.col, opponent, this.playerColor);
+                        worstReply = Math.min(worstReply, replyScore);
+                    }
+                }
+                score = worstReply;
+            }
+
+            board[row][col] = EMPTY;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = { row, col };
+            }
+        }
+
+        if (bestMove) {
+            log(LOG_AI, 'Medium difficulty selecting strategic move', { move: bestMove, score: bestScore });
+            return bestMove;
+        }
+
+        log(LOG_AI, 'Medium difficulty falling back to random move');
+        return this.makeRandomMove(board);
+    }
+
+    makeHardMove(board) {
+        log(LOG_AI, 'Hard difficulty running minimax search');
+        const winningMove = this.findWinningMove(board, this.playerColor);
+        if (winningMove) {
+            log(LOG_AI, 'Hard difficulty finishing with immediate win', { move: winningMove });
+            return winningMove;
+        }
+
+        const opponent = this.getOpponentColor();
+        const blockingMove = this.findWinningMove(board, opponent);
+        if (blockingMove) {
+            log(LOG_AI, 'Hard difficulty blocking opponent win before searching', { move: blockingMove });
+            return blockingMove;
+        }
+
+        const candidates = this.prepareCandidates(board, HARD_CANDIDATE_LIMIT);
+        if (candidates.length === 0) {
+            return this.makeRandomMove(board);
+        }
+
+        let bestScore = -Infinity;
+        let bestMove = null;
+
+        for (const candidate of candidates) {
+            const { row, col } = candidate;
+            board[row][col] = this.playerColor;
+            let score;
+            if (this.checkWinningMove(board, row, col, this.playerColor)) {
+                score = WIN_SCORE;
+            } else {
+                score = this.minimax(board, HARD_SEARCH_DEPTH - 1, false, -Infinity, Infinity);
+            }
+            board[row][col] = EMPTY;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = { row, col };
+            }
+        }
+
+        if (bestMove) {
+            log(LOG_AI, 'Hard difficulty move selected', { move: bestMove, score: bestScore });
+            return bestMove;
+        }
+
+        log(LOG_AI, 'Hard difficulty falling back to medium heuristics');
+        return this.makeMediumMove(board);
+    }
+
+    minimax(board, depth, maximizingPlayer, alpha, beta) {
+        if (depth === 0) {
+            return this.evaluateBoard(board, this.playerColor);
+        }
+
+        const current = maximizingPlayer ? this.playerColor : this.getOpponentColor();
+        const candidates = this.prepareCandidatesForPlayer(board, current, HARD_CANDIDATE_LIMIT);
+        if (candidates.length === 0) {
+            return this.evaluateBoard(board, this.playerColor);
+        }
+
+        let best = maximizingPlayer ? -Infinity : Infinity;
+
+        for (const candidate of candidates) {
+            const { row, col } = candidate;
+            board[row][col] = current;
+
+            let score;
+            if (this.checkWinningMove(board, row, col, current)) {
+                score = maximizingPlayer ? WIN_SCORE : -WIN_SCORE;
+            } else {
+                score = this.minimax(board, depth - 1, !maximizingPlayer, alpha, beta);
+            }
+
+            board[row][col] = EMPTY;
+
+            if (maximizingPlayer) {
+                best = Math.max(best, score);
+                alpha = Math.max(alpha, score);
+                if (alpha >= beta) {
+                    break;
+                }
+            } else {
+                best = Math.min(best, score);
+                beta = Math.min(beta, score);
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+        }
+
+        if (best === Infinity || best === -Infinity) {
+            return this.evaluateBoard(board, this.playerColor);
+        }
+
+        return best;
+    }
+
+    evaluateBoard(board, perspective) {
+        const opponent = this.getOpponentColor(perspective);
+        const ownScore = this.scoreLinesForPlayer(board, perspective);
+        const opponentScore = this.scoreLinesForPlayer(board, opponent);
+        return ownScore - opponentScore;
+    }
+
+    scoreLinesForPlayer(board, player) {
+        let score = 0;
+        const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+
+        for (let row = 0; row < BOARD_SIZE; row++) {
+            for (let col = 0; col < BOARD_SIZE; col++) {
+                if (board[row][col] !== player) continue;
+                for (const [dx, dy] of directions) {
+                    const prevRow = row - dx;
+                    const prevCol = col - dy;
+                    if (this.isInside(prevRow, prevCol) && board[prevRow][prevCol] === player) {
+                        continue;
+                    }
+
+                    let length = 0;
+                    let x = row;
+                    let y = col;
+                    while (this.isInside(x, y) && board[x][y] === player) {
+                        length++;
+                        x += dx;
+                        y += dy;
+                    }
+
+                    const forwardOpen = this.isEmptyCell(board, x, y);
+                    const backwardOpen = this.isEmptyCell(board, row - dx, col - dy);
+                    score += this.scorePattern(length, backwardOpen, forwardOpen);
+                }
+            }
+        }
+
+        return score;
+    }
+
+    scorePattern(length, backwardOpen, forwardOpen) {
+        if (length >= 5) {
+            return PATTERN_SCORES.five;
+        }
+
+        const openEnds = (backwardOpen ? 1 : 0) + (forwardOpen ? 1 : 0);
+        if (openEnds === 0) {
+            return 0;
+        }
+
+        switch (length) {
+            case 4:
+                return openEnds === 2 ? PATTERN_SCORES.openFour : PATTERN_SCORES.semiOpenFour;
+            case 3:
+                return openEnds === 2 ? PATTERN_SCORES.openThree : PATTERN_SCORES.semiOpenThree;
+            case 2:
+                return openEnds === 2 ? PATTERN_SCORES.openTwo : PATTERN_SCORES.semiOpenTwo;
+            default:
+                return 0;
+        }
+    }
+
+    prepareCandidates(board, limit, player = this.playerColor, perspective = this.playerColor) {
+        const potentialMoves = this.findPotentialMoves(board);
+        let candidates = potentialMoves;
+        if (candidates.length === 0) {
+            const center = Math.floor(BOARD_SIZE / 2);
+            candidates = [{ row: center, col: center }];
+        }
+        const ranked = this.rankCandidates(board, candidates, player, perspective);
+        return limit && ranked.length > limit ? ranked.slice(0, limit) : ranked;
+    }
+
+    prepareCandidatesForPlayer(board, player, limit) {
+        const ranked = this.prepareCandidates(board, limit, player, this.playerColor);
+        return ranked.map(({ row, col }) => ({ row, col }));
+    }
+
+    rankCandidates(board, candidates, player, perspective) {
+        return candidates
+            .map(move => ({
+                row: move.row,
+                col: move.col,
+                score: this.evaluateMove(board, move.row, move.col, player, perspective)
+            }))
+            .sort((a, b) => b.score - a.score);
+    }
+
+    evaluateMove(board, row, col, player, perspective = this.playerColor) {
+        board[row][col] = player;
+        const score = this.evaluateBoard(board, perspective);
+        board[row][col] = EMPTY;
+        return score;
+    }
+
     findEmptyCells(board) {
         const emptyCells = [];
         for (let row = 0; row < BOARD_SIZE; row++) {
@@ -77,76 +338,20 @@ class AIPlayer {
                 }
             }
         }
-        log(LOG_AI, 'Empty cells found', { count: emptyCells.length });
+        log(LOG_AI, 'Empty cells scanned', { count: emptyCells.length });
         return emptyCells;
     }
 
-/**
-     * Make a move using basic strategies (for medium difficulty)
-     * @param {Array<Array<number>>} board - The current game board
-     * @returns {Object} The chosen move as {row, col}
-     */
-    makeMediumMove(board) {
-        log(LOG_AI, 'Making medium difficulty move');
-
-        // 1. Check for an immediate win
-        const winningMove = this.findWinningMove(board, this.playerColor);
-        if (winningMove) {
-            log(LOG_AI, 'Winning move found', { move: winningMove });
-            return winningMove;
+    makeRandomMove(board) {
+        const emptyCells = this.findEmptyCells(board);
+        if (emptyCells.length === 0) {
+            log(LOG_AI, 'No available moves');
+            return null;
         }
-
-        // 2. Block immediate threats
-        const opponentColor = this.playerColor === BLACK ? WHITE : BLACK;
-        const blockingMove = this.findWinningMove(board, opponentColor);
-        if (blockingMove) {
-            log(LOG_AI, 'Blocking opponent\'s winning move', { move: blockingMove });
-            return blockingMove;
-        }
-
-        // 3. Create or extend advantageous positions
-        const advantageousMove = this.findAdvantageous(board, this.playerColor);
-        if (advantageousMove) {
-            log(LOG_AI, 'Creating advantageous position', { move: advantageousMove });
-            return advantageousMove;
-        }
-
-        // 4. Block opponent's development
-        const blockDevelopmentMove = this.findAdvantageous(board, opponentColor);
-        if (blockDevelopmentMove) {
-            log(LOG_AI, 'Blocking opponent\'s development', { move: blockDevelopmentMove });
-            return blockDevelopmentMove;
-        }
-
-        // 5. Center and strategic point control
-        const strategicMove = this.findStrategicMove(board);
-        if (strategicMove) {
-            log(LOG_AI, 'Making strategic move', { move: strategicMove });
-            return strategicMove;
-        }
-
-        // 6. Random move (fallback)
-        const randomMove = this.makeRandomMove(board);
-        log(LOG_AI, 'Making random move', { move: randomMove });
-        return randomMove;
-    }
-
-    countLine(board, row, col, dx, dy, player) {
-        return 1 + this.countStonesInDirection(board, row + dx, col + dy, dx, dy, player)
-                 + this.countStonesInDirection(board, row - dx, col - dy, -dx, -dy, player);
-    }
-
-    findAdvantageous(board, player) {
-        const moves = [];
-        const potentialMoves = this.findPotentialMoves(board);
-        for (const { row, col } of potentialMoves) {
-            const score = this.evaluatePosition(board, row, col, player);
-            if (score > 0) {
-                moves.push({ row, col, score });
-            }
-        }
-        moves.sort((a, b) => b.score - a.score);
-        return moves.length > 0 ? moves[0] : null;
+        const randomIndex = Math.floor(Math.random() * emptyCells.length);
+        const move = emptyCells[randomIndex];
+        log(LOG_AI, 'Random move selected', { move });
+        return move;
     }
 
     findPotentialMoves(board) {
@@ -171,95 +376,35 @@ class AIPlayer {
         });
     }
 
-    evaluatePosition(board, row, col, player) {
-        let score = 0;
-        const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
-        for (const [dx, dy] of directions) {
-            const lineLength = this.countLine(board, row, col, dx, dy, player);
-            if (lineLength >= 3) {
-                score += lineLength * 10;
-                if (this.isOpenEnded(board, row, col, dx, dy)) {
-                    score += 20;
-                }
-            }
-        }
-        return score;
-    }
-
-    isOpenEnded(board, row, col, dx, dy) {
-        return this.isEmptyCell(board, row - dx, col - dy) && this.isEmptyCell(board, row + dx, col + dy);
-    }
-
-    findStrategicMove(board) {
-        const center = Math.floor(BOARD_SIZE / 2);
-        const strategicPoints = [
-            { row: center, col: center },
-            { row: center - 1, col: center - 1 },
-            { row: center - 1, col: center + 1 },
-            { row: center + 1, col: center - 1 },
-            { row: center + 1, col: center + 1 }
-        ];
-        for (const point of strategicPoints) {
-            if (board[point.row][point.col] === EMPTY) {
-                return point;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Find winning move for a player
-     * @param {Array<Array<number>>} board - The current game board
-     * @param {number} player - The player to find winning move for
-     * @returns {Object|null} The winning move as {row, col}, or null if no winning move
-     */
     findWinningMove(board, player) {
         for (let row = 0; row < BOARD_SIZE; row++) {
             for (let col = 0; col < BOARD_SIZE; col++) {
-                if (board[row][col] === EMPTY) {
-                    if (this.checkWinningMove(board, row, col, player)) {
-                        return { row, col };
-                    }
+                if (board[row][col] === EMPTY && this.checkWinningMove(board, row, col, player)) {
+                    return { row, col };
                 }
             }
         }
         return null;
     }
 
-    /**
-     * Check if a move is a winning move
-     * @param {Array<Array<number>>} board - The current game board
-     * @param {number} row - The row of the move
-     * @param {number} col - The column of the move
-     * @param {number} player - The player making the move
-     * @returns {boolean} True if the move is a winning move, false otherwise
-     */
     checkWinningMove(board, row, col, player) {
         const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
         for (const [dx, dy] of directions) {
             let count = 1;
             count += this.countStonesInDirection(board, row, col, dx, dy, player);
             count += this.countStonesInDirection(board, row, col, -dx, -dy, player);
-            if (count >= 5) return true;
+            if (count >= 5) {
+                return true;
+            }
         }
         return false;
     }
 
-    /**
-     * Count consecutive stones in a direction
-     * @param {Array<Array<number>>} board - The current game board
-     * @param {number} row - Starting row
-     * @param {number} col - Starting column
-     * @param {number} dx - X direction
-     * @param {number} dy - Y direction
-     * @param {number} player - The player's stone to count
-     * @returns {number} The count of consecutive stones
-     */
     countStonesInDirection(board, row, col, dx, dy, player) {
         let count = 0;
         let x = row + dx;
         let y = col + dy;
-        while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === player) {
+        while (this.isInside(x, y) && board[x][y] === player) {
             count++;
             x += dx;
             y += dy;
@@ -267,38 +412,18 @@ class AIPlayer {
         return count;
     }
 
-    
-    /**
-     * Check if a cell is empty and within the board
-     * @param {Array<Array<number>>} board - The current game board
-     * @param {number} row - The row to check
-     * @param {number} col - The column to check
-     * @returns {boolean} True if the cell is empty and within the board, false otherwise
-     */
     isEmptyCell(board, row, col) {
-        return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE && board[row][col] === EMPTY;
+        return this.isInside(row, col) && board[row][col] === EMPTY;
     }
 
-
-    /**
-     * Make a move using advanced strategies (for hard difficulty)
-     * @param {Array<Array<number>>} board - The current game board
-     * @returns {Object} The chosen move as {row, col}
-     */
-    makeHardMove(board) {
-        log(LOG_AI, 'Hard difficulty move not yet implemented');
-        // TODO: Implement hard difficulty strategy
-        return this.makeRandomMove(board);
+    isInside(row, col) {
+        return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
     }
 
-    /**
-     * Evaluate the current board state
-     * @param {Array<Array<number>>} board - The current game board
-     * @returns {number} The score of the current board state
-     */
-    evaluateBoard(board, playerColor) {
-        // Implementation will go here
+    getOpponentColor(player = this.playerColor) {
+        return player === BLACK ? WHITE : BLACK;
     }
 }
 
 export default AIPlayer;
+

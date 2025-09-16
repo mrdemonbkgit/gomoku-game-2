@@ -33,9 +33,9 @@ Both players share the same device and alternate placing stones. Undo removes on
 - Switching modes resets the game to keep state consistent.
 
 #### Difficulty Levels
-- `Easy`: chooses a random empty cell.
-- `Medium`: prioritises immediate wins, blocks opponent threats, seeks advantageous patterns, and falls back to strategic points or random placement.
-- `Hard`: currently reuses the random selection logic (placeholder for future advanced heuristics).
+- `Easy`: blocks instant wins and chooses from the strongest nearby options to stay competitive.
+- `Medium`: layers the easy heuristics with board scoring and checks likely opponent replies before committing to a move.
+- `Hard`: runs a minimax search with alpha-beta pruning over top candidates for a tournament-grade challenge.
 
 ## Move History and Undo Flow
 - Moves are stored in `moveHistory` up to `MAX_HISTORY` entries (see `config.js`).
@@ -85,6 +85,7 @@ project-root/
 - `validateDomReferences` guards against missing UI elements and surfaces issues via `LOG_ERROR`.
 - `updateBoard` and `updateCellAppearance` keep the DOM in sync with the in-memory board and ease future refactors.
 - The codebase is organised into small, reusable functions with JSDoc comments to simplify maintenance.
+- Refer to ``ai-opponent.md`` for a deep dive into the AI difficulty pipeline and heuristics.
 - No build tooling is required; linting or testing can be added using your preferred workflow.
 
 ## Enhancement Ideas
@@ -97,3 +98,4 @@ The following themes capture the primary expansion opportunities:
 - **Analysis and tools**: replay viewer, heatmaps, debug dashboards, and test coverage for critical logic.
 
 Contributions should follow the logging conventions and keep the undo/history model in sync with any new gameplay features.
+
