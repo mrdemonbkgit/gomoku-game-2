@@ -7,28 +7,30 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Gomoku Game</h1>
-    <div id="game-options">
-        <label for="game-mode">Game Mode:</label>
-        <select id="game-mode">
-            <option value="human">Human vs Human</option>
-            <option value="ai">Human vs AI</option>
-        </select>
-        
-        <div id="ai-options" style="display: none;">
-            <label for="ai-difficulty">AI Difficulty:</label>
-            <select id="ai-difficulty">
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
+    <div id="game-container">
+        <h1>Gomoku Game</h1>
+        <div id="game-options">
+            <label for="game-mode">Game Mode:</label>
+            <select id="game-mode">
+                <option value="human">Human vs Human</option>
+                <option value="ai">Human vs AI</option>
             </select>
+
+            <div id="ai-options" style="display: none;">
+                <label for="ai-difficulty">AI Difficulty:</label>
+                <select id="ai-difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
         </div>
-    </div>
-    <div id="status"></div>
-    <div id="board"></div>
-    <div id="controls">
-        <button id="new-game">New Game</button>
-        <button id="undo">Undo</button>
+        <div id="status" role="status" aria-live="polite"></div>
+        <div id="board" role="grid" aria-label="Gomoku board"></div>
+        <div id="controls">
+            <button id="new-game" type="button">New Game</button>
+            <button id="undo" type="button">Undo</button>
+        </div>
     </div>
     <script type="module" src="script.js"></script>
 </body>
