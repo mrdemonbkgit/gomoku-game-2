@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Gomoku Game Logic
  * This script implements a basic Gomoku (Five in a Row) game.
  */
@@ -16,6 +16,7 @@ import {
     LOG_ERROR,
     log
 } from './config.js';
+import { determineWinningSequence as engineDetermineWinningSequence, checkDraw as engineCheckDraw } from './src/engine/game.js';
 
 // Game state variables
 let board = []; // 2D array representing the game board
@@ -172,7 +173,7 @@ function makeMove(row, col) {
  * @returns {boolean} True if the move creates a five-stone line, false otherwise
  */
 function checkWin(row, col) {
-    const result = determineWinningSequence(row, col);
+    const result = engineDetermineWinningSequence(board, row, col);
     if (result) {
         winningSequence = result.sequence.map(position => ({ row: position.row, col: position.col }));
         log(LOG_GAME, 'Win condition met', { row, col, direction: result.direction, sequence: winningSequence });
@@ -184,70 +185,16 @@ function checkWin(row, col) {
 }
 
 /**
- * Determine the winning sequence (if any) originating from the last move.
- * @param {number} row - The row of the last placed stone
- * @param {number} col - The column of the last placed stone
- * @returns {{sequence: Array<{row: number, col: number}>, direction: [number, number]}|null}
- */
-function determineWinningSequence(row, col) {
-    const player = board[row][col];
-    if (player === EMPTY) {
-        return null;
-    }
-
-    const directions = [
-        [1, 0], [0, 1], [1, 1], [1, -1]
-    ];
-
-    for (const [dx, dy] of directions) {
-        const forward = collectLineCells(row, col, dx, dy, player);
-        const backward = collectLineCells(row, col, -dx, -dy, player);
-        const line = [{ row, col }, ...forward, ...backward];
-
-        if (line.length >= 5) {
-            return { sequence: line, direction: [dx, dy] };
-        }
-    }
-
-    return null;
-}
-
-
-/**
- * Collect consecutive stones for a player in a given direction.
- * @param {number} row - Starting row
- * @param {number} col - Starting column
- * @param {number} dx - X direction (-1, 0, or 1)
- * @param {number} dy - Y direction (-1, 0, or 1)
- * @param {number} player - The player identifier
- * @returns {Array<{row: number, col: number}>} Collected cells in the specified direction
- */
-function collectLineCells(row, col, dx, dy, player) {
-    const cells = [];
-    let x = row + dx;
-    let y = col + dy;
-
-    while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] === player) {
-        cells.push({ row: x, col: y });
-        x += dx;
-        y += dy;
-    }
-
-    return cells;
-}
-
-/**
  * Check for a draw condition
  * @returns {boolean} True if the game is a draw, false otherwise
  */
 function checkDraw() {
-    const isDraw = board.every(row => row.every(cell => cell !== EMPTY));
+    const isDraw = engineCheckDraw(board);
     if (isDraw) {
         log(LOG_GAME, 'Draw condition met');
     }
     return isDraw;
 }
-
 function setStatus(message, indicatorState = 'neutral') {
     if (statusMessageElement) {
         statusMessageElement.textContent = message;

@@ -10,6 +10,7 @@ const MEDIUM_CANDIDATE_LIMIT = 12;
 const MEDIUM_RESPONSE_LIMIT = 6;
 const HARD_CANDIDATE_LIMIT = 8;
 const HARD_SEARCH_DEPTH = 3;
+const HARD_THREAT_CANDIDATE_LIMIT = 16;
 const WIN_SCORE = 1_000_000;
 
 const PATTERN_SCORES = {
@@ -84,6 +85,53 @@ class AIPlayer {
             }
         }
         return count;
+    }
+
+    hasCriticalThreat(board, player) {
+        const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        for (let row = 0; row < BOARD_SIZE; row++) {
+            for (let col = 0; col < BOARD_SIZE; col++) {
+                if (board[row][col] !== player) {
+                    continue;
+                }
+                for (const [dx, dy] of directions) {
+                    const prevRow = row - dx;
+                    const prevCol = col - dy;
+                    if (this.isInside(prevRow, prevCol) && board[prevRow][prevCol] === player) {
+                        continue;
+                    }
+                    let length = 0;
+                    let x = row;
+                    let y = col;
+                    while (this.isInside(x, y) && board[x][y] === player) {
+                        length += 1;
+                        x += dx;
+                        y += dy;
+                    }
+                    const forwardOpen = this.isEmptyCell(board, x, y);
+                    const backwardOpen = this.isEmptyCell(board, row - dx, col - dy);
+                    const openEnds = (forwardOpen ? 1 : 0) + (backwardOpen ? 1 : 0);
+                    if (length >= 4 && openEnds > 0) {
+                        return true;
+                    }
+                    if (length === 3 && openEnds === 2) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    getAdaptiveCandidateLimit(board, player, baseLimit) {
+        if (typeof baseLimit !== 'number' || baseLimit <= 0) {
+            return baseLimit;
+        }
+        const opponent = this.getOpponentColor(player);
+        if (this.hasCriticalThreat(board, player) || this.hasCriticalThreat(board, opponent)) {
+            return Math.max(baseLimit, HARD_THREAT_CANDIDATE_LIMIT);
+        }
+        return baseLimit;
     }
 
     makeMove(board) {
@@ -303,7 +351,8 @@ class AIPlayer {
             return blockingMove;
         }
 
-        const candidates = this.prepareCandidates(board, HARD_CANDIDATE_LIMIT);
+        const candidateLimit = this.getAdaptiveCandidateLimit(board, this.playerColor, HARD_CANDIDATE_LIMIT);
+        const candidates = this.prepareCandidates(board, candidateLimit);
         if (metrics) {
             metrics.candidateCount = candidates.length;
         }
@@ -366,7 +415,8 @@ class AIPlayer {
         }
 
         const current = maximizingPlayer ? this.playerColor : this.getOpponentColor();
-        const candidates = this.prepareCandidatesForPlayer(board, current, HARD_CANDIDATE_LIMIT);
+        const candidateLimit = this.getAdaptiveCandidateLimit(board, current, HARD_CANDIDATE_LIMIT);
+        const candidates = this.prepareCandidatesForPlayer(board, current, candidateLimit);
         if (metrics) {
             metrics.maxBranchingFactor = Math.max(metrics.maxBranchingFactor ?? 0, candidates.length);
         }

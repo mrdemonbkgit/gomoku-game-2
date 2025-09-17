@@ -26,6 +26,7 @@ This guide documents how the Gomoku project implements its computer-controlled o
 - Executes a minimax search with alpha-beta pruning to depth three (AI -> opponent -> AI) across the best-ranked moves.
 - Uses the same evaluation function as other levels to score leaf nodes, heavily rewarding open-ended lines while penalising blocked formations.
 - Always intercepts immediate wins or losses before launching the deeper search so the branching factor stays contained.
+- Expands its candidate pool whenever live fours or open threes appear so forced defences stay in scope even after pruning.
 
 ## Heuristic Building Blocks
 - **Potential move generation:** `findPotentialMoves` gathers empty cells adjacent to any stone. Empty boards default to the centre point.

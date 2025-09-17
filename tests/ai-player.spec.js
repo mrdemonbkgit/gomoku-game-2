@@ -98,4 +98,25 @@ describe('AIPlayer', () => {
         expect(event.searchDepth).toBe(3);
         expect(event.durationMs).toBeGreaterThanOrEqual(0);
     });
+
+    it('keeps hard candidate limit when no critical threats', () => {
+        const board = createEmptyBoard();
+        board[7][7] = WHITE;
+        const ai = new AIPlayer('hard', WHITE, { random: () => 0 });
+        const baseLimit = 8;
+        const limit = ai.getAdaptiveCandidateLimit(board, WHITE, baseLimit);
+        expect(limit).toBe(baseLimit);
+    });
+
+    it('expands hard candidate limit when opponent threatens', () => {
+        const board = createEmptyBoard();
+        board[5][5] = BLACK;
+        board[5][6] = BLACK;
+        board[5][7] = BLACK;
+        board[5][8] = BLACK;
+        const ai = new AIPlayer('hard', WHITE, { random: () => 0 });
+        const expanded = ai.getAdaptiveCandidateLimit(board, WHITE, 8);
+        expect(expanded).toBeGreaterThan(8);
+    });
+
 });
