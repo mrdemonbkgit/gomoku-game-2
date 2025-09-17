@@ -16,7 +16,5 @@ jobs:
           node-version: 18
       - name: Install dependencies
         run: npm install
-      - name: Run unit tests
-        run: npm test
-      - name: Run CI benchmark suite
-        run: npm run bench:ci
+      - name: Build (runs benchmarks + tests)
+        run: npm run build

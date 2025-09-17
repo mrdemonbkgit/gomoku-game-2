@@ -89,8 +89,9 @@ project-root/
 - No build tooling is required; linting or testing can be added using your preferred workflow.
 
 ## Benchmarking
-- `npm run bench:run` executes the default self-play suite defined in `benchmarks/config/default.json` and writes summaries to `benchmarks/results/<timestamp>/summary.json`.
-- `npm run test:engine` runs smoke checks for `GomokuEngine` to validate apply/undo and state loading logic.
+- `npm run build` runs the default self-play suite and automatically executes `npm test` afterwards.
+- `npm test` runs the Vitest unit suite.
+- `npm run bench:run` executes the default benchmark config (`benchmarks/config/default.json`) and writes summaries to `benchmarks/results/<timestamp>/summary.json`.
 - `npm run bench:ci` runs the smoke suite used by `.github/workflows/benchmarks.yml`.
 - The runner relies on the headless `GomokuEngine` (`src/engine/game.js`) for deterministic AI matches; see `benchmarking-system.md` for architecture details.
 

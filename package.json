@@ -4,6 +4,8 @@
     "private":  true,
     "type":  "module",
     "scripts":  {
+                    "build":  "npm run bench:run",
+                    "postbuild":  "npm test",
                     "test":  "vitest run",
                     "test:watch":  "vitest",
                     "bench:run":  "node benchmarks/runners/run-benchmarks.mjs",

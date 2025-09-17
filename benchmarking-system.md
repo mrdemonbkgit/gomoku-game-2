@@ -6,10 +6,10 @@
 - Allow periodic comparison with external engines (e.g., Gomocup entrants) without blocking daily development.
 
 ## Current Assets
-- `src/engine/game.js` supplies a headless GomokuEngine with deterministic apply/undo logic, state load/clone helpers, and move generation utilities for deterministic self-play.
+- `src/engine/game.js` supplies a headless `GomokuEngine` with deterministic apply/undo logic, state load/clone helpers, and move generation utilities for deterministic self-play.
 - `benchmarks/runners/run-benchmarks.mjs` executes seeded AI-vs-AI matches using JSON configs under `benchmarks/config/`, writing summaries to timestamped folders in `benchmarks/results/`.
-- `npm run bench:run` and `npm run bench:ci` wrap the runner for local and CI usage (see `.github/workflows/benchmarks.yml`).
-- `tests/engine-smoke.mjs` offers a fast regression check for engine APIs (run via `npm run test:engine`).
+- `npm run build` runs the default benchmark suite and then automatically calls `npm test` via the `postbuild` hook.
+- `npm test` (Vitest) covers engine and AI behaviour via `tests/engine.spec.js` and `tests/ai-player.spec.js`.
 
 ## Scope
 - Browser UI is out of scope; benchmarking runs headless using the core rules engine and AI modules.
