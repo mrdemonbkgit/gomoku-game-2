@@ -22,6 +22,21 @@ const PATTERN_SCORES = {
     semiOpenTwo: 250
 };
 
+function getTimestampMs() {
+    if (typeof globalThis !== 'undefined' && globalThis.performance && typeof globalThis.performance.now === 'function') {
+        return globalThis.performance.now();
+    }
+    return Date.now();
+}
+
+function toPlayerLabel(color) {
+    return color === BLACK ? 'black' : 'white';
+}
+
+function cloneMove(move) {
+    return move ? { row: move.row, col: move.col } : null;
+}
+
 class AIPlayer {
     constructor(difficulty, playerColor, options = {}) {
         const { random, telemetry } = options;
@@ -32,30 +47,97 @@ class AIPlayer {
         log(LOG_AI, 'AI player created', { difficulty, playerColor });
     }
 
+    createMetrics() {
+        return {
+            event: 'move',
+            difficulty: this.difficulty,
+            player: toPlayerLabel(this.playerColor),
+            strategy: null,
+            candidateCount: 0,
+            decision: 'pending'
+        };
+    }
+
+    emitTelemetry(metrics) {
+        if (!this.telemetry) {
+            return;
+        }
+        const payload = { ...metrics };
+        if (metrics && metrics.move) {
+            payload.move = cloneMove(metrics.move);
+        }
+        try {
+            this.telemetry(payload);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            log(LOG_AI, 'Telemetry callback failed', { error: message });
+        }
+    }
+
+    countOccupiedCells(board) {
+        let count = 0;
+        for (let row = 0; row < BOARD_SIZE; row++) {
+            for (let col = 0; col < BOARD_SIZE; col++) {
+                if (board[row][col] !== EMPTY) {
+                    count += 1;
+                }
+            }
+        }
+        return count;
+    }
+
     makeMove(board) {
         if (!Array.isArray(board) || board.length !== BOARD_SIZE || board[0].length !== BOARD_SIZE) {
             throw new Error('Invalid board state');
         }
 
+        const metrics = this.telemetry ? this.createMetrics() : null;
+        let startTime = null;
+        let move = null;
+        if (metrics) {
+            metrics.boardOccupancy = this.countOccupiedCells(board);
+            startTime = getTimestampMs();
+        }
+
         log(LOG_AI, 'AI deciding move', { difficulty: this.difficulty });
         switch (this.difficulty) {
             case 'easy':
-                return this.makeEasyMove(board);
+                move = this.makeEasyMove(board, metrics);
+                break;
             case 'medium':
-                return this.makeMediumMove(board);
+                move = this.makeMediumMove(board, metrics);
+                break;
             case 'hard':
-                return this.makeHardMove(board);
+                move = this.makeHardMove(board, metrics);
+                break;
             default:
                 log(LOG_AI, 'Invalid difficulty level', { difficulty: this.difficulty });
                 throw new Error('Invalid difficulty level');
         }
+
+        if (metrics) {
+            const elapsed = getTimestampMs() - startTime;
+            metrics.durationMs = elapsed >= 0 ? elapsed : 0;
+            metrics.move = cloneMove(move);
+            metrics.result = move ? 'move-selected' : 'no-move';
+            this.emitTelemetry(metrics);
+        }
+
+        return move;
     }
 
-    makeEasyMove(board) {
+    makeEasyMove(board, metrics = null) {
         log(LOG_AI, 'Easy difficulty evaluating options');
+        if (metrics) {
+            metrics.strategy = 'easy';
+        }
         const winningMove = this.findWinningMove(board, this.playerColor);
         if (winningMove) {
             log(LOG_AI, 'Easy difficulty finishing game', { move: winningMove });
+            if (metrics) {
+                metrics.decision = 'immediate-win';
+                metrics.selectedScore = WIN_SCORE;
+            }
             return winningMove;
         }
 
@@ -63,27 +145,52 @@ class AIPlayer {
         const blockingMove = this.findWinningMove(board, opponent);
         if (blockingMove) {
             log(LOG_AI, 'Easy difficulty blocking immediate threat', { move: blockingMove });
+            if (metrics) {
+                metrics.decision = 'block-threat';
+                metrics.selectedScore = null;
+            }
             return blockingMove;
         }
 
         const ranked = this.prepareCandidates(board, EASY_CANDIDATE_LIMIT);
+        if (metrics) {
+            metrics.candidateCount = ranked.length;
+        }
         if (ranked.length > 0) {
             const selection = ranked.slice(0, Math.min(EASY_TOP_CHOICES, ranked.length));
             const choice = selection[Math.floor(this.random() * selection.length)];
             const move = { row: choice.row, col: choice.col };
             log(LOG_AI, 'Easy difficulty selecting from top candidates', { move });
+            if (metrics) {
+                metrics.decision = 'candidate';
+                metrics.selectionPool = selection.length;
+                metrics.selectedScore = typeof choice.score === 'number' ? choice.score : null;
+            }
             return move;
         }
 
         log(LOG_AI, 'Easy difficulty falling back to random move');
+        if (metrics) {
+            metrics.decision = 'random-fallback';
+            metrics.selectedScore = null;
+        }
         return this.makeRandomMove(board);
     }
 
-    makeMediumMove(board) {
+    makeMediumMove(board, metrics = null) {
         log(LOG_AI, 'Medium difficulty evaluating multi-step options');
+        if (metrics) {
+            metrics.strategy = 'medium';
+            metrics.consideredCandidates = 0;
+            metrics.responsesEvaluated = 0;
+        }
         const winningMove = this.findWinningMove(board, this.playerColor);
         if (winningMove) {
             log(LOG_AI, 'Medium difficulty taking winning move', { move: winningMove });
+            if (metrics) {
+                metrics.decision = 'immediate-win';
+                metrics.selectedScore = WIN_SCORE;
+            }
             return winningMove;
         }
 
@@ -91,11 +198,22 @@ class AIPlayer {
         const blockingMove = this.findWinningMove(board, opponent);
         if (blockingMove) {
             log(LOG_AI, 'Medium difficulty blocking winning threat', { move: blockingMove });
+            if (metrics) {
+                metrics.decision = 'block-threat';
+                metrics.selectedScore = null;
+            }
             return blockingMove;
         }
 
         const candidates = this.prepareCandidates(board, MEDIUM_CANDIDATE_LIMIT);
+        if (metrics) {
+            metrics.candidateCount = candidates.length;
+        }
         if (candidates.length === 0) {
+            if (metrics) {
+                metrics.decision = 'random-fallback';
+                metrics.selectedScore = null;
+            }
             return this.makeRandomMove(board);
         }
 
@@ -103,6 +221,9 @@ class AIPlayer {
         let bestMove = null;
 
         for (const candidate of candidates) {
+            if (metrics) {
+                metrics.consideredCandidates += 1;
+            }
             const { row, col } = candidate;
             board[row][col] = this.playerColor;
 
@@ -112,6 +233,9 @@ class AIPlayer {
             } else {
                 const baseScore = this.evaluateBoard(board, this.playerColor);
                 const opponentReplies = this.prepareCandidatesForPlayer(board, opponent, MEDIUM_RESPONSE_LIMIT);
+                if (metrics) {
+                    metrics.responsesEvaluated += opponentReplies.length;
+                }
                 let worstReply = baseScore;
                 if (opponentReplies.length > 0) {
                     worstReply = Infinity;
@@ -133,18 +257,38 @@ class AIPlayer {
 
         if (bestMove) {
             log(LOG_AI, 'Medium difficulty selecting strategic move', { move: bestMove, score: bestScore });
+            if (metrics) {
+                metrics.decision = 'candidate';
+                metrics.selectedScore = bestScore;
+            }
             return bestMove;
         }
 
         log(LOG_AI, 'Medium difficulty falling back to random move');
+        if (metrics) {
+            metrics.decision = 'random-fallback';
+            metrics.selectedScore = null;
+        }
         return this.makeRandomMove(board);
     }
 
-    makeHardMove(board) {
+    makeHardMove(board, metrics = null) {
         log(LOG_AI, 'Hard difficulty running minimax search');
+        if (metrics) {
+            metrics.strategy = 'hard';
+            metrics.searchDepth = HARD_SEARCH_DEPTH;
+            metrics.consideredCandidates = 0;
+            metrics.nodesEvaluated = 0;
+            metrics.maxDepthReached = 0;
+            metrics.prunedBranches = 0;
+        }
         const winningMove = this.findWinningMove(board, this.playerColor);
         if (winningMove) {
             log(LOG_AI, 'Hard difficulty finishing with immediate win', { move: winningMove });
+            if (metrics) {
+                metrics.decision = 'immediate-win';
+                metrics.selectedScore = WIN_SCORE;
+            }
             return winningMove;
         }
 
@@ -152,11 +296,22 @@ class AIPlayer {
         const blockingMove = this.findWinningMove(board, opponent);
         if (blockingMove) {
             log(LOG_AI, 'Hard difficulty blocking opponent win before searching', { move: blockingMove });
+            if (metrics) {
+                metrics.decision = 'block-threat';
+                metrics.selectedScore = null;
+            }
             return blockingMove;
         }
 
         const candidates = this.prepareCandidates(board, HARD_CANDIDATE_LIMIT);
+        if (metrics) {
+            metrics.candidateCount = candidates.length;
+        }
         if (candidates.length === 0) {
+            if (metrics) {
+                metrics.decision = 'random-fallback';
+                metrics.selectedScore = null;
+            }
             return this.makeRandomMove(board);
         }
 
@@ -164,13 +319,16 @@ class AIPlayer {
         let bestMove = null;
 
         for (const candidate of candidates) {
+            if (metrics) {
+                metrics.consideredCandidates += 1;
+            }
             const { row, col } = candidate;
             board[row][col] = this.playerColor;
             let score;
             if (this.checkWinningMove(board, row, col, this.playerColor)) {
                 score = WIN_SCORE;
             } else {
-                score = this.minimax(board, HARD_SEARCH_DEPTH - 1, false, -Infinity, Infinity);
+                score = this.minimax(board, HARD_SEARCH_DEPTH - 1, false, -Infinity, Infinity, metrics, 1);
             }
             board[row][col] = EMPTY;
 
@@ -182,20 +340,36 @@ class AIPlayer {
 
         if (bestMove) {
             log(LOG_AI, 'Hard difficulty move selected', { move: bestMove, score: bestScore });
+            if (metrics) {
+                metrics.decision = 'search';
+                metrics.selectedScore = bestScore;
+            }
             return bestMove;
         }
 
         log(LOG_AI, 'Hard difficulty falling back to medium heuristics');
+        if (metrics) {
+            metrics.decision = 'medium-fallback';
+            metrics.selectedScore = null;
+            metrics.fallbackStrategy = 'medium';
+        }
         return this.makeMediumMove(board);
     }
 
-    minimax(board, depth, maximizingPlayer, alpha, beta) {
+    minimax(board, depth, maximizingPlayer, alpha, beta, metrics = null, currentDepth = 1) {
+        if (metrics) {
+            metrics.nodesEvaluated = (metrics.nodesEvaluated ?? 0) + 1;
+            metrics.maxDepthReached = Math.max(metrics.maxDepthReached ?? 0, currentDepth);
+        }
         if (depth === 0) {
             return this.evaluateBoard(board, this.playerColor);
         }
 
         const current = maximizingPlayer ? this.playerColor : this.getOpponentColor();
         const candidates = this.prepareCandidatesForPlayer(board, current, HARD_CANDIDATE_LIMIT);
+        if (metrics) {
+            metrics.maxBranchingFactor = Math.max(metrics.maxBranchingFactor ?? 0, candidates.length);
+        }
         if (candidates.length === 0) {
             return this.evaluateBoard(board, this.playerColor);
         }
@@ -210,7 +384,7 @@ class AIPlayer {
             if (this.checkWinningMove(board, row, col, current)) {
                 score = maximizingPlayer ? WIN_SCORE : -WIN_SCORE;
             } else {
-                score = this.minimax(board, depth - 1, !maximizingPlayer, alpha, beta);
+                score = this.minimax(board, depth - 1, !maximizingPlayer, alpha, beta, metrics, currentDepth + 1);
             }
 
             board[row][col] = EMPTY;
@@ -219,12 +393,18 @@ class AIPlayer {
                 best = Math.max(best, score);
                 alpha = Math.max(alpha, score);
                 if (alpha >= beta) {
+                    if (metrics) {
+                        metrics.prunedBranches = (metrics.prunedBranches ?? 0) + 1;
+                    }
                     break;
                 }
             } else {
                 best = Math.min(best, score);
                 beta = Math.min(beta, score);
                 if (beta <= alpha) {
+                    if (metrics) {
+                        metrics.prunedBranches = (metrics.prunedBranches ?? 0) + 1;
+                    }
                     break;
                 }
             }
