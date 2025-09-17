@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Gomoku Game Logic
  * This script implements a basic Gomoku (Five in a Row) game.
  */
@@ -102,7 +102,7 @@ function initializeBoard() {
  * @param {Event} event - The click event object
  */
 function handleCellClick(event) {
-    if (gameOver || (gameMode === 'ai' && currentPlayer !== BLACK)) return;
+    if (gameOver || (gameMode === 'ai' && currentPlayer !== humanPlayerColor)) return;
 
     const row = parseInt(event.target.dataset.row);
     const col = parseInt(event.target.dataset.col);
@@ -748,6 +748,7 @@ export {
     checkWin,
     updateStatus
 };
+
 
 
 
