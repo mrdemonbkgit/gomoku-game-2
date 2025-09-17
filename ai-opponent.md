@@ -6,7 +6,8 @@ This guide documents how the Gomoku project implements its computer-controlled o
 1. `AIPlayer` is constructed with a difficulty name (`easy`, `medium`, or `hard`) and the stone colour it controls (currently always white).
 2. After each human turn, `script.js` calls `aiPlayer.makeMove(board)` with the current 15x15 matrix.
 3. The AI inspects the board, chooses `{ row, col }`, and the controller applies the move, runs win detection, and updates the UI.
-4. The AI never mutates shared state directly and relies heavily on the logging helper from `config.js` for observability.
+4. When the human chooses to play white, the AI automatically opens the game with a black move before the first human turn.
+5. The AI never mutates shared state directly and relies heavily on the logging helper from `config.js` for observability.
 
 ## Difficulty Strategies
 ### Easy - "Thoughtful Beginner"
@@ -64,3 +65,5 @@ Understanding these components will make it easier to diagnose AI behaviour chan
 [1] "Computers and gomoku", Wikipedia, accessed 17 Sep 2025.
 [2] "Proof-number search", Wikipedia, accessed 17 Sep 2025.
 [3] Gomocup - The Gomoku AI Tournament, official site, accessed 17 Sep 2025.
+
+

@@ -28,7 +28,7 @@ A browser-based implementation of Gomoku (Five in a Row) built with plain HTML, 
 Both players share the same device and alternate placing stones. Undo removes only the last move.
 
 ### Human vs AI
-- Humans always control the black stones; the AI answers as white.
+- Humans can choose to play as black or white when facing the AI. Selecting white lets the AI open the game as black.
 - AI turns are scheduled with a short delay so the UI has time to update.
 - Switching modes resets the game to keep state consistent.
 
@@ -118,4 +118,5 @@ Contributions should follow the logging conventions and keep the undo/history mo
 [1] "Computers and gomoku", Wikipedia, accessed 17 Sep 2025.
 [2] "Proof-number search", Wikipedia, accessed 17 Sep 2025.
 [3] Gomocup - The Gomoku AI Tournament, official site, accessed 17 Sep 2025.
+
 

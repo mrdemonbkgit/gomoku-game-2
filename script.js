@@ -24,6 +24,8 @@ let gameOver = false; // Flag to indicate if the game has ended
 let moveHistory = [];
 let lastMove = null;
 let winningSequence = [];
+let humanPlayerColor = BLACK;
+let aiPlayerColor = WHITE;
 let systemThemeMediaQuery = null;
 let storageAvailable = true;
 let gameMode = 'human'; // 'human' or 'ai'
@@ -40,6 +42,8 @@ const undoButton = document.getElementById('undo');
 const gameModeSelect = document.getElementById('game-mode');
 const aiOptionsDiv = document.getElementById('ai-options');
 const aiDifficultySelect = document.getElementById('ai-difficulty');
+const playerColorOptionsDiv = document.getElementById('player-color-options');
+const playerColorSelect = document.getElementById('player-color');
 
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const gridToggle = document.getElementById('grid-toggle');
@@ -119,7 +123,11 @@ function handleCellClick(event) {
  * Makes a move for the AI player.
  */
 function makeAIMove() {
-    log(LOG_AI, 'AI is making a move', { difficulty: aiPlayer.difficulty });
+    if (!aiPlayer || gameOver || currentPlayer !== aiPlayerColor) {
+        return;
+    }
+
+    log(LOG_AI, 'AI is making a move', { difficulty: aiPlayer.difficulty, aiColor: aiPlayerColor === BLACK ? 'black' : 'white' });
     const move = aiPlayer.makeMove(board);
     if (move) {
         makeMove(move.row, move.col);
@@ -263,9 +271,10 @@ function updateStatus() {
         const playerName = currentPlayer === BLACK ? 'Black' : 'White';
         message = `Current player: ${playerName}`;
         indicatorState = currentPlayer === BLACK ? 'black' : 'white';
-    } else if (currentPlayer === BLACK) {
-        message = 'Your turn (Black)';
-        indicatorState = 'black';
+    } else if (currentPlayer === humanPlayerColor) {
+        const playerName = humanPlayerColor === BLACK ? 'Black' : 'White';
+        message = `Your turn (${playerName})`;
+        indicatorState = humanPlayerColor === BLACK ? 'black' : 'white';
     } else {
         message = 'AI is thinking...';
         indicatorState = 'ai';
@@ -286,6 +295,11 @@ function updateStatus() {
 function resetGame() {
     syncAIOptionsVisibility();
 
+    if (playerColorSelect) {
+        humanPlayerColor = playerColorSelect.value === 'white' ? WHITE : BLACK;
+    }
+    aiPlayerColor = humanPlayerColor === BLACK ? WHITE : BLACK;
+
     clearWinningHighlight();
 
     // Reset the game board to all empty cells
@@ -293,16 +307,16 @@ function resetGame() {
 
     // Set Black as the starting player
     currentPlayer = BLACK;
-    
+
     // Reset the game over flag
     gameOver = false;
-    
+
     // Clear the move history
     moveHistory = [];
 
     // Reset the lastMove reference
     lastMove = null;
-    
+
     // Remove stone classes and highlights from all cells
     document.querySelectorAll('.cell').forEach(cell => {
         cell.classList.remove('black', 'white', 'last-move', 'winning', 'placed');
@@ -312,7 +326,14 @@ function resetGame() {
     updateUndoButton();
 
     if (gameMode === 'ai') {
-        aiPlayer = new AIPlayer(aiDifficulty, WHITE);
+        aiPlayer = new AIPlayer(aiDifficulty, aiPlayerColor);
+        if (currentPlayer === aiPlayerColor) {
+            setTimeout(() => {
+                if (!gameOver && currentPlayer === aiPlayerColor) {
+                    makeAIMove();
+                }
+            }, 300);
+        }
     } else {
         aiPlayer = null;
     }
@@ -320,7 +341,11 @@ function resetGame() {
     // Update the game status display
     updateStatus();
 
-    log(LOG_GAME, 'Game reset', { gameMode, aiDifficulty });
+    log(LOG_GAME, 'Game reset', {
+        gameMode,
+        aiDifficulty,
+        humanColor: humanPlayerColor === BLACK ? 'black' : 'white'
+    });
 }
 
 /**
@@ -344,59 +369,60 @@ function saveMove(row, col) {
  * Undo the last move
  */
 function undo() {
-    if (moveHistory.length > 0) {
-        clearWinningHighlight();
-        // Undo the last move (AI's move in AI mode)
-        const lastMoveEntry = moveHistory.pop();
-        board[lastMoveEntry.row][lastMoveEntry.col] = EMPTY;
+    if (moveHistory.length === 0) {
+        return;
+    }
 
-        // Remove the stone and highlight from the undone move
-        const cell = document.querySelector(`.cell[data-row="${lastMoveEntry.row}"][data-col="${lastMoveEntry.col}"]`);
+    clearWinningHighlight();
+
+    const removedMoves = [];
+
+    const undoSingleMove = () => {
+        const entry = moveHistory.pop();
+        board[entry.row][entry.col] = EMPTY;
+        const cell = document.querySelector(`.cell[data-row="${entry.row}"][data-col="${entry.col}"]`);
         if (cell) {
             cell.classList.remove('black', 'white', 'last-move', 'winning', 'placed');
         }
+        removedMoves.push(entry);
+    };
 
-        let undoneMovesCount = 1;
+    undoSingleMove();
 
-        // If in AI mode and there's another move, undo the human's move too
-        if (gameMode === 'ai' && moveHistory.length > 0) {
-            const humanMove = moveHistory.pop();
-            board[humanMove.row][humanMove.col] = EMPTY;
+    if (gameMode === 'ai' && moveHistory.length > 0) {
+        const colors = new Set(removedMoves.map(move => move.player));
+        while (colors.size < 2 && moveHistory.length > 0) {
+            undoSingleMove();
+            colors.add(removedMoves[removedMoves.length - 1].player);
+        }
+    }
 
-            // Remove the stone and highlight from the human's move
-            const humanCell = document.querySelector(`.cell[data-row="${humanMove.row}"][data-col="${humanMove.col}"]`);
-            if (humanCell) {
-                humanCell.classList.remove('black', 'white', 'last-move', 'winning', 'placed');
+    lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
+
+    if (lastMove) {
+        highlightLastMove(lastMove.row, lastMove.col);
+        currentPlayer = lastMove.player === BLACK ? WHITE : BLACK;
+    } else {
+        currentPlayer = BLACK;
+    }
+
+    gameOver = false;
+    winningSequence = [];
+    updateBoard();
+    updateStatus();
+    updateUndoButton();
+
+    log(LOG_MOVE, 'Move(s) undone', { undoneMovesCount: removedMoves.length });
+
+    if (!gameOver && gameMode === 'ai' && currentPlayer === aiPlayerColor) {
+        setTimeout(() => {
+            if (!gameOver && currentPlayer === aiPlayerColor) {
+                makeAIMove();
             }
-
-            undoneMovesCount = 2;
-        }
-
-        // Update the lastMove reference
-        lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
-
-        // If there's a previous move, highlight it
-        if (lastMove) {
-            highlightLastMove(lastMove.row, lastMove.col);
-            // Set the current player to the opposite of the last move's player
-            currentPlayer = lastMove.player === BLACK ? WHITE : BLACK;
-        } else {
-            // If no moves left, set currentPlayer back to BLACK (starting player)
-            currentPlayer = BLACK;
-        }
-
-        // Update the UI
-        updateStatus();
-        updateUndoButton();
-
-        // Reset game over state if necessary
-        if (gameOver) {
-            gameOver = false;
-        }
-
-        log(LOG_MOVE, 'Move(s) undone', { undoneMovesCount });
+        }, 300);
     }
 }
+
 
 /**
  * Update the visual board based on the current game state
@@ -643,8 +669,27 @@ function handleAIDifficultyChange() {
     log(LOG_AI, 'AI difficulty changed', { newDifficulty: aiDifficulty });
 }
 
+function handlePlayerColorChange() {
+    if (!playerColorSelect) {
+        return;
+    }
+    humanPlayerColor = playerColorSelect.value === 'white' ? WHITE : BLACK;
+    aiPlayerColor = humanPlayerColor === BLACK ? WHITE : BLACK;
+    log(LOG_GAME, 'Human player color changed', {
+        selected: humanPlayerColor === BLACK ? 'black' : 'white'
+    });
+    if (gameMode === 'ai') {
+        resetGame();
+    }
+}
+
 function initializeGame() {
     validateDomReferences();
+    if (playerColorSelect) {
+        playerColorSelect.value = 'black';
+    }
+    humanPlayerColor = BLACK;
+    aiPlayerColor = WHITE;
     initializeBoard();
     initializePreferences();
     setupEventListeners();
@@ -658,6 +703,9 @@ function setupEventListeners() {
     undoButton.addEventListener('click', undo);
     gameModeSelect.addEventListener('change', handleGameModeChange);
     aiDifficultySelect.addEventListener('change', handleAIDifficultyChange);
+    if (playerColorSelect) {
+        playerColorSelect.addEventListener('change', handlePlayerColorChange);
+    }
     if (darkModeToggle) {
         darkModeToggle.addEventListener('change', handleThemeToggle);
     }
@@ -672,7 +720,12 @@ function syncAIOptionsVisibility() {
     const shouldHide = gameMode !== 'ai';
     aiOptionsDiv.hidden = shouldHide;
     aiOptionsDiv.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+    if (playerColorOptionsDiv) {
+        playerColorOptionsDiv.hidden = shouldHide;
+        playerColorOptionsDiv.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+    }
 }
+
 
 // Initialize the game when the DOM is ready
 if (document.readyState === 'loading') {
@@ -695,3 +748,9 @@ export {
     checkWin,
     updateStatus
 };
+
+
+
+
+
+
