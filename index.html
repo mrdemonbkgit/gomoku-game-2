@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gomoku Game</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" sizes="any">
 </head>
 <body>
     <main class="page">
@@ -14,65 +15,68 @@
                 <p class="tagline">Challenge a friend or take on the AI. Place five stones in a row to claim victory.</p>
             </header>
 
-            <div id="game-options" class="options-panel" aria-label="Game options">
-                <div class="field">
-                    <label for="game-mode">Game Mode</label>
-                    <select id="game-mode">
-                        <option value="human">Human vs Human</option>
-                        <option value="ai">Human vs AI</option>
-                    </select>
+            <section class="play-area" aria-label="Game play area">
+                <div id="status" class="status" role="status" aria-live="polite">
+                    <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
+                    <span id="status-message" class="status-message">Setting up the board...</span>
                 </div>
 
-                <div id="ai-options" class="field" hidden>
-                    <label for="ai-difficulty">AI Difficulty</label>
-                    <select id="ai-difficulty">
-                        <option value="easy">Easy</option>
-                        <option value="medium">Medium</option>
-                        <option value="hard">Hard</option>
-                    </select>
+                <div class="board-wrapper">
+                    <div id="board" role="grid" aria-label="Gomoku board"></div>
                 </div>
 
-                <div id="player-color-options" class="field" hidden>
-                    <label for="player-color">Human Plays</label>
-                    <select id="player-color">
-                        <option value="black">Black (go first)</option>
-                        <option value="white">White</option>
-                    </select>
+                <div id="controls" class="controls">
+                    <button id="new-game" type="button" class="primary">New Game</button>
+                    <button id="undo" type="button" class="secondary">Undo</button>
+                </div>
+            </section>
+
+            <aside class="options-area" aria-label="Game options and preferences">
+                <div id="game-options" class="options-panel" aria-label="Game options">
+                    <div class="field">
+                        <label for="game-mode">Game Mode</label>
+                        <select id="game-mode">
+                            <option value="human">Human vs Human</option>
+                            <option value="ai">Human vs AI</option>
+                        </select>
+                    </div>
+
+                    <div id="ai-options" class="field" hidden>
+                        <label for="ai-difficulty">AI Difficulty</label>
+                        <select id="ai-difficulty">
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <div id="player-color-options" class="field" hidden>
+                        <label for="player-color">Human Plays</label>
+                        <select id="player-color">
+                            <option value="black">Black (go first)</option>
+                            <option value="white">White</option>
+                        </select>
+                    </div>
+
+                    <div class="field toggle-field" aria-label="Display preferences">
+                        <span class="field-label">Display</span>
+                        <label class="toggle" for="dark-mode-toggle">
+                            <input type="checkbox" id="dark-mode-toggle" />
+                            <span class="toggle-slider" aria-hidden="true"></span>
+                            <span class="toggle-text">Dark mode</span>
+                        </label>
+                        <label class="toggle" for="grid-toggle">
+                            <input type="checkbox" id="grid-toggle" checked />
+                            <span class="toggle-slider" aria-hidden="true"></span>
+                            <span class="toggle-text">Show grid</span>
+                        </label>
+                    </div>
                 </div>
 
-                <div class="field toggle-field" aria-label="Display preferences">
-                    <span class="field-label">Display</span>
-                    <label class="toggle" for="dark-mode-toggle">
-                        <input type="checkbox" id="dark-mode-toggle" />
-                        <span class="toggle-slider" aria-hidden="true"></span>
-                        <span class="toggle-text">Dark mode</span>
-                    </label>
-                    <label class="toggle" for="grid-toggle">
-                        <input type="checkbox" id="grid-toggle" checked />
-                        <span class="toggle-slider" aria-hidden="true"></span>
-                        <span class="toggle-text">Show grid</span>
-                    </label>
-                </div>
-            </div>
-
-            <div id="status" class="status" role="status" aria-live="polite">
-                <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
-                <span id="status-message" class="status-message">Setting up the board...</span>
-            </div>
-
-            <div class="board-wrapper">
-                <div id="board" role="grid" aria-label="Gomoku board"></div>
-            </div>
-
-            <div id="controls" class="controls">
-                <button id="new-game" type="button" class="primary">New Game</button>
-                <button id="undo" type="button" class="secondary">Undo</button>
-            </div>
-
-            <p class="hint" role="note">Tip: Change game modes at any time and use Undo to rethink your strategy.</p>
+                <p class="hint" role="note">Tip: Change game modes at any time and use Undo to rethink your strategy.</p>
+            </aside>
         </div>
     </main>
     <script type="module" src="script.js"></script>
 </body>
 </html>
-
