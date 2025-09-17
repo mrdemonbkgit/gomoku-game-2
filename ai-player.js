@@ -23,9 +23,12 @@ const PATTERN_SCORES = {
 };
 
 class AIPlayer {
-    constructor(difficulty, playerColor) {
+    constructor(difficulty, playerColor, options = {}) {
+        const { random, telemetry } = options;
         this.difficulty = difficulty;
         this.playerColor = playerColor;
+        this.random = typeof random === 'function' ? random : Math.random;
+        this.telemetry = telemetry || null;
         log(LOG_AI, 'AI player created', { difficulty, playerColor });
     }
 
@@ -66,7 +69,7 @@ class AIPlayer {
         const ranked = this.prepareCandidates(board, EASY_CANDIDATE_LIMIT);
         if (ranked.length > 0) {
             const selection = ranked.slice(0, Math.min(EASY_TOP_CHOICES, ranked.length));
-            const choice = selection[Math.floor(Math.random() * selection.length)];
+            const choice = selection[Math.floor(this.random() * selection.length)];
             const move = { row: choice.row, col: choice.col };
             log(LOG_AI, 'Easy difficulty selecting from top candidates', { move });
             return move;
@@ -348,7 +351,7 @@ class AIPlayer {
             log(LOG_AI, 'No available moves');
             return null;
         }
-        const randomIndex = Math.floor(Math.random() * emptyCells.length);
+        const randomIndex = Math.floor(this.random() * emptyCells.length);
         const move = emptyCells[randomIndex];
         log(LOG_AI, 'Random move selected', { move });
         return move;

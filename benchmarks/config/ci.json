@@ -1,0 +1,9 @@
+{
+  "description": "CI smoke benchmark",
+  "boardSize": 15,
+  "pairings": [
+    { "id": "easy-vs-medium", "black": "easy", "white": "medium", "games": 2 }
+  ],
+  "baseSeed": 2025,
+  "maxConcurrency": 1
+}

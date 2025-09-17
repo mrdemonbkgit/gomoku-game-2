@@ -1,0 +1,10 @@
+{
+  "description": "Default self-play sanity suite",
+  "boardSize": 15,
+  "pairings": [
+    { "id": "medium-vs-medium", "black": "medium", "white": "medium", "games": 4 },
+    { "id": "medium-vs-hard", "black": "medium", "white": "hard", "games": 4 }
+  ],
+  "baseSeed": 1337,
+  "maxConcurrency": 1
+}

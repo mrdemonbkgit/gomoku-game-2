@@ -1,0 +1,12 @@
+{
+  "name": "gomoku-game",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench:run": "node benchmarks/runners/run-benchmarks.mjs",
+    "bench:ci": "node benchmarks/runners/run-benchmarks.mjs --config benchmarks/config/ci.json",
+    "test:engine": "node tests/engine-smoke.mjs"
+  }
+}
+

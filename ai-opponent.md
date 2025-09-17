@@ -52,3 +52,15 @@ Use the browser console filter `[AI]` for quick debugging or to analyse decision
 - **Testing:** Craft unit tests around `findWinningMove`, `evaluateBoard`, and `minimax` to ensure future tweaks do not create regressions. During manual playtesting, leave the console open to validate that the logged reasoning matches expectations.
 
 Understanding these components will make it easier to diagnose AI behaviour changes or to build richer competitive features.
+## Research-Informed Enhancements
+
+- **Proof-number and dependency-based search**: Incorporate PN-search/DB-search to exhaustively resolve forcing lines before falling back to heuristic scoring. Allis demonstrated that these solvers can prove wins from an empty 15x15 board, making them ideal for hard difficulty endgames.[1][2]
+- **Threat sequencing heuristics**: Layer threat-space detection (double-threes, four-four forks, overlines) on top of the current evaluation so the AI recognises must-answer threats earlier and reduces the branching factor in tactical fights.
+- **Iterative deepening with transposition tables**: Add iterative deepening, move ordering caches, and Zobrist-hash transposition tables so alpha-beta and minimax reuse work across branches instead of recomputing the same positions.
+- **Opening preparation**: Support professional opening protocols (Swap2, Swap after three) and load curated opening books so the AI handles the unsolved early-game more competitively, aligning with modern tournament play.[1]
+- **Benchmarking and tuning**: Automate self-play ladders, log win-rate deltas per difficulty, and integrate with public competitions such as Gomocup to measure progress against established engines.[3] Implementation notes live in `benchmarking-system.md`.
+
+## References
+[1] "Computers and gomoku", Wikipedia, accessed 17 Sep 2025.
+[2] "Proof-number search", Wikipedia, accessed 17 Sep 2025.
+[3] Gomocup - The Gomoku AI Tournament, official site, accessed 17 Sep 2025.

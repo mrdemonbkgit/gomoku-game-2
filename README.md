@@ -88,6 +88,12 @@ project-root/
 - Refer to ``ai-opponent.md`` for a deep dive into the AI difficulty pipeline and heuristics.
 - No build tooling is required; linting or testing can be added using your preferred workflow.
 
+## Benchmarking
+- `npm run bench:run` executes the default self-play suite defined in `benchmarks/config/default.json` and writes summaries to `benchmarks/results/<timestamp>/summary.json`.
+- `npm run test:engine` runs smoke checks for `GomokuEngine` to validate apply/undo and state loading logic.
+- `npm run bench:ci` runs the smoke suite used by `.github/workflows/benchmarks.yml`.
+- The runner relies on the headless `GomokuEngine` (`src/engine/game.js`) for deterministic AI matches; see `benchmarking-system.md` for architecture details.
+
 ## Enhancement Ideas
 The following themes capture the primary expansion opportunities:
 - **AI depth**: implement the planned hard difficulty, add minimax or heuristic search, and expose tuning controls.
@@ -98,4 +104,17 @@ The following themes capture the primary expansion opportunities:
 - **Analysis and tools**: replay viewer, heatmaps, debug dashboards, and test coverage for critical logic.
 
 Contributions should follow the logging conventions and keep the undo/history model in sync with any new gameplay features.
+
+## Current Gaps & Next Steps
+- **Undo depth**: `MAX_HISTORY` caps undos at 50 moves while a 15x15 game can span 225 turns; consider persisting a full move log or capped-by-memory buffer so competitive matches remain reviewable.
+- **AI search strength**: Hard mode stops at depth 3 without caching; folding in proof-number/dependency search and transposition-aware iterative deepening would close the gap with state-of-the-art approaches documenting forced wins on standard boards.[1][2]
+- **Threat modelling**: Add explicit threat-space and double-threat scanners so medium/hard difficulties defend four-four and overline races without relying solely on scalar evaluations.
+- **Opening rules**: Only freestyle play is supported today; implementing Swap2 and other professional openings keeps parity with modern human and engine tournaments.[1]
+- **Benchmarking**: No automated way exists to compare builds; scripting self-play suites and submitting snapshots to events like Gomocup creates an external yardstick.[3] See `benchmarking-system.md` for the proposed benchmarking framework.
+- **Quality gates**: There is no unit or integration test coverage; instrument critical modules (win detection, undo, AI selectors) before future refactors land.
+
+### References
+[1] "Computers and gomoku", Wikipedia, accessed 17 Sep 2025.
+[2] "Proof-number search", Wikipedia, accessed 17 Sep 2025.
+[3] Gomocup - The Gomoku AI Tournament, official site, accessed 17 Sep 2025.
 
