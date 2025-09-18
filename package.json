@@ -1,17 +1,20 @@
 {
-    "name":  "gomoku-game",
-    "version":  "0.1.0",
-    "private":  true,
-    "type":  "module",
-    "scripts":  {
-                    "build":  "npm run bench:run",
-                    "postbuild":  "npm test",
-                    "test":  "vitest run",
-                    "test:watch":  "vitest",
-                    "bench:run":  "node benchmarks/runners/run-benchmarks.mjs",
-                    "bench:ci":  "node benchmarks/runners/run-benchmarks.mjs --config benchmarks/config/ci.json"
-                },
-    "devDependencies":  {
-                            "vitest":  "^1.6.0"
-                        }
+    "name": "gomoku-game",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "npm run bench:run",
+        "postbuild": "npm test",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "bench:run": "node benchmarks/runners/run-benchmarks.mjs",
+        "bench:ci": "node benchmarks/runners/run-benchmarks.mjs --config benchmarks/config/ci.json",
+        "generate:favicon": "node scripts/generate-favicon.mjs"
+    },
+    "devDependencies": {
+        "png-to-ico": "^3.0.1",
+        "sharp": "^0.34.4",
+        "vitest": "^1.6.0"
+    }
 }
