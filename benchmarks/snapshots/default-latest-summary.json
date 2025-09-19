@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "generatedAt": "2025-09-19T06:35:59.892Z",
+    "configPath": "C:\\Users\\mrdem\\ai-project\\gomoku-game-2\\benchmarks\\config\\default.json",
+    "baseSeed": 1337,
+    "boardSize": 15,
+    "description": "Default self-play sanity suite"
+  },
+  "pairings": [
+    {
+      "id": "medium-vs-medium",
+      "black": "medium",
+      "white": "medium",
+      "blackWins": 4,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 36,
+      "seeds": [
+        1337,
+        1338,
+        1339,
+        1340
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 36,
+        "averageDurationMs": 2.026,
+        "maxDurationMs": 9.391,
+        "averageCandidateCount": 7.67,
+        "maxCandidateCount": 12,
+        "averageNodesEvaluated": 0,
+        "maxNodesEvaluated": 0
+      }
+    },
+    {
+      "id": "medium-vs-hard",
+      "black": "medium",
+      "white": "hard",
+      "blackWins": 4,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 36,
+      "seeds": [
+        2337,
+        2338,
+        2339,
+        2340
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 36,
+        "averageDurationMs": 4.366,
+        "maxDurationMs": 29.39,
+        "averageCandidateCount": 7.67,
+        "maxCandidateCount": 16,
+        "averageNodesEvaluated": 192.89,
+        "maxNodesEvaluated": 1184
+      }
+    },
+    {
+      "id": "hard-vs-medium",
+      "black": "hard",
+      "white": "medium",
+      "blackWins": 4,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 36,
+      "seeds": [
+        3337,
+        3338,
+        3339,
+        3340
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 36,
+        "averageDurationMs": 5.98,
+        "maxDurationMs": 40.577,
+        "averageCandidateCount": 7.22,
+        "maxCandidateCount": 16,
+        "averageNodesEvaluated": 232,
+        "maxNodesEvaluated": 1409
+      }
+    },
+    {
+      "id": "hard-vs-hard",
+      "black": "hard",
+      "white": "hard",
+      "blackWins": 4,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 36,
+      "seeds": [
+        4337,
+        4338,
+        4339,
+        4340
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 36,
+        "averageDurationMs": 8.162,
+        "maxDurationMs": 31.062,
+        "averageCandidateCount": 7.22,
+        "maxCandidateCount": 16,
+        "averageNodesEvaluated": 424.89,
+        "maxNodesEvaluated": 1409
+      }
+    }
+  ]
+}

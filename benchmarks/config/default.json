@@ -3,8 +3,11 @@
   "boardSize": 15,
   "pairings": [
     { "id": "medium-vs-medium", "black": "medium", "white": "medium", "games": 4 },
-    { "id": "medium-vs-hard", "black": "medium", "white": "hard", "games": 4 }
+    { "id": "medium-vs-hard", "black": "medium", "white": "hard", "games": 4 },
+    { "id": "hard-vs-medium", "black": "hard", "white": "medium", "games": 4 },
+    { "id": "hard-vs-hard", "black": "hard", "white": "hard", "games": 4 }
   ],
   "baseSeed": 1337,
   "maxConcurrency": 1
 }
+

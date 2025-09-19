@@ -8,6 +8,7 @@
 ## Current Assets
 - `src/engine/game.js` supplies a headless `GomokuEngine` with deterministic apply/undo logic, state load/clone helpers, and move generation utilities for deterministic self-play.
 - `benchmarks/runners/run-benchmarks.mjs` executes seeded AI-vs-AI matches using JSON configs under `benchmarks/config/`, writing summaries to timestamped folders in `benchmarks/results/`.
+- `benchmarks/runners/run-benchmarks-extended.mjs` builds on the default runner with agent profiles/behaviour overrides declared in config files, enabling side-by-side comparisons of tuned heuristics.
 - `npm run build` runs the default benchmark suite and then automatically calls `npm test` via the `postbuild` hook.
 - `npm test` (Vitest) covers engine and AI behaviour via `tests/engine.spec.js` and `tests/ai-player.spec.js`.
 
@@ -62,10 +63,10 @@ benchmark config --> Match Scheduler --> Match Runner --> Metrics Collector --> 
 - **Report (`report.md`)**: human-readable summary with tables and charts (links to raw data).
 
 ## Workflow
-1. `npm run bench:prepare` — builds headless bundle, copies to `benchmarks/dist/`.
-2. `npm run bench:run -- --config benchmarks/config/default.json` — runs scheduler/runner, produces raw logs.
-3. `npm run bench:report` — generates summary and Markdown dashboard, updates `benchmarks/latest/` symlink.
-4. `npm run bench:compare -- --baseline benchmarks/baselines/2024-09-01/summary.json` — prints deltas and regression warnings.
+1. `npm run bench:prepare` â€” builds headless bundle, copies to `benchmarks/dist/`.
+2. `npm run bench:run -- --config benchmarks/config/default.json` â€” runs scheduler/runner, produces raw logs.
+3. `npm run bench:report` â€” generates summary and Markdown dashboard, updates `benchmarks/latest/` symlink.
+4. `npm run bench:compare -- --baseline benchmarks/baselines/2024-09-01/summary.json` â€” prints deltas and regression warnings.
 
 CI integration: `benchmarks/config/ci.json` runs a reduced suite (e.g., 50 games per pairing) within <10 minutes, saving artifacts for inspection.
 
@@ -124,6 +125,3 @@ benchmarks/
 3. Scaffold `benchmarks/` folder with sample config, runner skeleton, and documentation.
 4. Set up CI job invoking the slim benchmarking suite and storing artifacts for regression analysis.
 5. Plan external bot compatibility by prototyping the Gomocup protocol adapter.
-
-
-

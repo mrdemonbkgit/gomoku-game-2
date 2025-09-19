@@ -1,0 +1,375 @@
+{
+  "metadata": {
+    "generatedAt": "2025-09-19T06:32:29.229Z",
+    "configPath": "C:\\Users\\mrdem\\ai-project\\gomoku-game-2\\benchmarks\\config\\algorithms.json",
+    "baseSeed": 20250919,
+    "boardSize": 15,
+    "description": "Algorithm exploration suite comparing tuned AI profiles",
+    "agents": {
+      "easy": {
+        "label": "easy",
+        "difficulty": "easy",
+        "profile": null,
+        "description": null
+      },
+      "medium": {
+        "label": "medium",
+        "difficulty": "medium",
+        "profile": null,
+        "description": null
+      },
+      "hard": {
+        "label": "hard",
+        "difficulty": "hard",
+        "profile": null,
+        "description": null
+      },
+      "easy-greedy": {
+        "label": "easy-greedy",
+        "difficulty": "easy",
+        "profile": "greedy-top2",
+        "description": null
+      },
+      "medium-tight": {
+        "label": "medium-tight",
+        "difficulty": "medium",
+        "profile": "tight-response",
+        "description": null
+      },
+      "hard-depth-4": {
+        "label": "hard-depth-4",
+        "difficulty": "hard",
+        "profile": "depth-4",
+        "description": null
+      },
+      "hard-wide": {
+        "label": "hard-wide",
+        "difficulty": "hard",
+        "profile": "wide-search",
+        "description": null
+      }
+    }
+  },
+  "pairings": [
+    {
+      "id": "hard-depth-4-vs-hard",
+      "black": "hard-depth-4",
+      "white": "hard",
+      "blackAgent": {
+        "key": "hard-depth-4",
+        "label": "hard-depth-4",
+        "difficulty": "hard",
+        "profile": "depth-4"
+      },
+      "whiteAgent": {
+        "key": "hard",
+        "label": "hard",
+        "difficulty": "hard",
+        "profile": null
+      },
+      "blackWins": 6,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 54,
+      "seeds": [
+        20250919,
+        20250920,
+        20250921,
+        20250922,
+        20250923,
+        20250924
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 54,
+        "averageDurationMs": 38.243,
+        "maxDurationMs": 253.453,
+        "averageCandidateCount": 8.11,
+        "maxCandidateCount": 20,
+        "averageNodesEvaluated": 2742.44,
+        "maxNodesEvaluated": 13542
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "hard-vs-hard-depth-4",
+      "black": "hard",
+      "white": "hard-depth-4",
+      "blackAgent": {
+        "key": "hard",
+        "label": "hard",
+        "difficulty": "hard",
+        "profile": null
+      },
+      "whiteAgent": {
+        "key": "hard-depth-4",
+        "label": "hard-depth-4",
+        "difficulty": "hard",
+        "profile": "depth-4"
+      },
+      "blackWins": 6,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 102,
+      "seeds": [
+        20251919,
+        20251920,
+        20251921,
+        20251922,
+        20251923,
+        20251924
+      ],
+      "averageMoves": 17,
+      "metrics": {
+        "moveCount": 102,
+        "averageDurationMs": 47.187,
+        "maxDurationMs": 345.207,
+        "averageCandidateCount": 8.41,
+        "maxCandidateCount": 20,
+        "averageNodesEvaluated": 2211.29,
+        "maxNodesEvaluated": 10840
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "hard-wide-vs-hard",
+      "black": "hard-wide",
+      "white": "hard",
+      "blackAgent": {
+        "key": "hard-wide",
+        "label": "hard-wide",
+        "difficulty": "hard",
+        "profile": "wide-search"
+      },
+      "whiteAgent": {
+        "key": "hard",
+        "label": "hard",
+        "difficulty": "hard",
+        "profile": null
+      },
+      "blackWins": 6,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 54,
+      "seeds": [
+        20252919,
+        20252920,
+        20252921,
+        20252922,
+        20252923,
+        20252924
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 54,
+        "averageDurationMs": 10.664,
+        "maxDurationMs": 50.84,
+        "averageCandidateCount": 8.78,
+        "maxCandidateCount": 22,
+        "averageNodesEvaluated": 870.67,
+        "maxNodesEvaluated": 4420
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "hard-vs-hard-wide",
+      "black": "hard",
+      "white": "hard-wide",
+      "blackAgent": {
+        "key": "hard",
+        "label": "hard",
+        "difficulty": "hard",
+        "profile": null
+      },
+      "whiteAgent": {
+        "key": "hard-wide",
+        "label": "hard-wide",
+        "difficulty": "hard",
+        "profile": "wide-search"
+      },
+      "blackWins": 0,
+      "whiteWins": 6,
+      "draws": 0,
+      "totalMoves": 72,
+      "seeds": [
+        20253919,
+        20253920,
+        20253921,
+        20253922,
+        20253923,
+        20253924
+      ],
+      "averageMoves": 12,
+      "metrics": {
+        "moveCount": 72,
+        "averageDurationMs": 14.671,
+        "maxDurationMs": 77.017,
+        "averageCandidateCount": 9.33,
+        "maxCandidateCount": 24,
+        "averageNodesEvaluated": 921.83,
+        "maxNodesEvaluated": 3633
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "medium-tight-vs-medium",
+      "black": "medium-tight",
+      "white": "medium",
+      "blackAgent": {
+        "key": "medium-tight",
+        "label": "medium-tight",
+        "difficulty": "medium",
+        "profile": "tight-response"
+      },
+      "whiteAgent": {
+        "key": "medium",
+        "label": "medium",
+        "difficulty": "medium",
+        "profile": null
+      },
+      "blackWins": 0,
+      "whiteWins": 6,
+      "draws": 0,
+      "totalMoves": 108,
+      "seeds": [
+        20254919,
+        20254920,
+        20254921,
+        20254922,
+        20254923,
+        20254924
+      ],
+      "averageMoves": 18,
+      "metrics": {
+        "moveCount": 108,
+        "averageDurationMs": 0.851,
+        "maxDurationMs": 2.274,
+        "averageCandidateCount": 7.17,
+        "maxCandidateCount": 12,
+        "averageNodesEvaluated": 0,
+        "maxNodesEvaluated": 0
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "medium-vs-medium-tight",
+      "black": "medium",
+      "white": "medium-tight",
+      "blackAgent": {
+        "key": "medium",
+        "label": "medium",
+        "difficulty": "medium",
+        "profile": null
+      },
+      "whiteAgent": {
+        "key": "medium-tight",
+        "label": "medium-tight",
+        "difficulty": "medium",
+        "profile": "tight-response"
+      },
+      "blackWins": 6,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 54,
+      "seeds": [
+        20255919,
+        20255920,
+        20255921,
+        20255922,
+        20255923,
+        20255924
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 54,
+        "averageDurationMs": 0.515,
+        "maxDurationMs": 1.35,
+        "averageCandidateCount": 6.78,
+        "maxCandidateCount": 12,
+        "averageNodesEvaluated": 0,
+        "maxNodesEvaluated": 0
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "easy-greedy-vs-medium",
+      "black": "easy-greedy",
+      "white": "medium",
+      "blackAgent": {
+        "key": "easy-greedy",
+        "label": "easy-greedy",
+        "difficulty": "easy",
+        "profile": "greedy-top2"
+      },
+      "whiteAgent": {
+        "key": "medium",
+        "label": "medium",
+        "difficulty": "medium",
+        "profile": null
+      },
+      "blackWins": 1,
+      "whiteWins": 5,
+      "draws": 0,
+      "totalMoves": 81,
+      "seeds": [
+        20256919,
+        20256920,
+        20256921,
+        20256922,
+        20256923,
+        20256924
+      ],
+      "averageMoves": 13.5,
+      "metrics": {
+        "moveCount": 81,
+        "averageDurationMs": 0.545,
+        "maxDurationMs": 3.156,
+        "averageCandidateCount": 7.09,
+        "maxCandidateCount": 12,
+        "averageNodesEvaluated": 0,
+        "maxNodesEvaluated": 0
+      },
+      "gamesPlayed": 6
+    },
+    {
+      "id": "medium-vs-easy-greedy",
+      "black": "medium",
+      "white": "easy-greedy",
+      "blackAgent": {
+        "key": "medium",
+        "label": "medium",
+        "difficulty": "medium",
+        "profile": null
+      },
+      "whiteAgent": {
+        "key": "easy-greedy",
+        "label": "easy-greedy",
+        "difficulty": "easy",
+        "profile": "greedy-top2"
+      },
+      "blackWins": 6,
+      "whiteWins": 0,
+      "draws": 0,
+      "totalMoves": 54,
+      "seeds": [
+        20257919,
+        20257920,
+        20257921,
+        20257922,
+        20257923,
+        20257924
+      ],
+      "averageMoves": 9,
+      "metrics": {
+        "moveCount": 54,
+        "averageDurationMs": 0.455,
+        "maxDurationMs": 1.68,
+        "averageCandidateCount": 6.78,
+        "maxCandidateCount": 12,
+        "averageNodesEvaluated": 0,
+        "maxNodesEvaluated": 0
+      },
+      "gamesPlayed": 6
+    }
+  ]
+}

@@ -23,6 +23,16 @@ const PATTERN_SCORES = {
     semiOpenTwo: 250
 };
 
+function normalizePositiveInteger(value, fallback) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+    const integer = Math.floor(parsed);
+    return integer > 0 ? integer : fallback;
+}
+
+
 function getTimestampMs() {
     if (typeof globalThis !== 'undefined' && globalThis.performance && typeof globalThis.performance.now === 'function') {
         return globalThis.performance.now();
@@ -40,12 +50,33 @@ function cloneMove(move) {
 
 class AIPlayer {
     constructor(difficulty, playerColor, options = {}) {
-        const { random, telemetry } = options;
+        const { random, telemetry, behavior } = options;
+        const behaviorOptions = behavior && typeof behavior === 'object' ? behavior : {};
+
         this.difficulty = difficulty;
         this.playerColor = playerColor;
         this.random = typeof random === 'function' ? random : Math.random;
         this.telemetry = telemetry || null;
-        log(LOG_AI, 'AI player created', { difficulty, playerColor });
+
+        const nameInput = typeof behaviorOptions.name === 'string' ? behaviorOptions.name.trim() : '';
+        this.behaviorLabel = nameInput.length > 0 ? nameInput : null;
+        this.behaviorDescription = typeof behaviorOptions.description === 'string' ? behaviorOptions.description : null;
+
+        this.easyCandidateLimit = normalizePositiveInteger(behaviorOptions.easyCandidateLimit, EASY_CANDIDATE_LIMIT);
+        this.easyTopChoices = Math.min(
+            normalizePositiveInteger(behaviorOptions.easyTopChoices, EASY_TOP_CHOICES),
+            this.easyCandidateLimit
+        );
+        this.mediumCandidateLimit = normalizePositiveInteger(behaviorOptions.mediumCandidateLimit, MEDIUM_CANDIDATE_LIMIT);
+        this.mediumResponseLimit = Math.min(
+            normalizePositiveInteger(behaviorOptions.mediumResponseLimit, MEDIUM_RESPONSE_LIMIT),
+            this.mediumCandidateLimit
+        );
+        this.hardCandidateLimit = normalizePositiveInteger(behaviorOptions.hardCandidateLimit, HARD_CANDIDATE_LIMIT);
+        this.hardSearchDepth = normalizePositiveInteger(behaviorOptions.hardSearchDepth, HARD_SEARCH_DEPTH);
+        this.hardThreatCandidateLimit = normalizePositiveInteger(behaviorOptions.hardThreatCandidateLimit, HARD_THREAT_CANDIDATE_LIMIT);
+
+        log(LOG_AI, 'AI player created', { difficulty, playerColor, profile: this.behaviorLabel || null });
     }
 
     createMetrics() {
@@ -55,7 +86,8 @@ class AIPlayer {
             player: toPlayerLabel(this.playerColor),
             strategy: null,
             candidateCount: 0,
-            decision: 'pending'
+            decision: 'pending',
+            profile: this.behaviorLabel
         };
     }
 
@@ -129,7 +161,7 @@ class AIPlayer {
         }
         const opponent = this.getOpponentColor(player);
         if (this.hasCriticalThreat(board, player) || this.hasCriticalThreat(board, opponent)) {
-            return Math.max(baseLimit, HARD_THREAT_CANDIDATE_LIMIT);
+            return Math.max(baseLimit, this.hardThreatCandidateLimit);
         }
         return baseLimit;
     }
@@ -200,15 +232,15 @@ class AIPlayer {
             return blockingMove;
         }
 
-        const ranked = this.prepareCandidates(board, EASY_CANDIDATE_LIMIT);
+        const ranked = this.prepareCandidates(board, this.easyCandidateLimit);
         if (metrics) {
             metrics.candidateCount = ranked.length;
         }
         if (ranked.length > 0) {
-            const selection = ranked.slice(0, Math.min(EASY_TOP_CHOICES, ranked.length));
+            const selection = ranked.slice(0, Math.min(this.easyTopChoices, ranked.length));
             const choice = selection[Math.floor(this.random() * selection.length)];
             const move = { row: choice.row, col: choice.col };
-            log(LOG_AI, 'Easy difficulty selecting from top candidates', { move });
+            log(LOG_AI, 'Easy difficulty selecting from top candidates', { move, profile: this.behaviorLabel || undefined });
             if (metrics) {
                 metrics.decision = 'candidate';
                 metrics.selectionPool = selection.length;
@@ -253,7 +285,7 @@ class AIPlayer {
             return blockingMove;
         }
 
-        const candidates = this.prepareCandidates(board, MEDIUM_CANDIDATE_LIMIT);
+        const candidates = this.prepareCandidates(board, this.mediumCandidateLimit);
         if (metrics) {
             metrics.candidateCount = candidates.length;
         }
@@ -280,7 +312,7 @@ class AIPlayer {
                 score = WIN_SCORE;
             } else {
                 const baseScore = this.evaluateBoard(board, this.playerColor);
-                const opponentReplies = this.prepareCandidatesForPlayer(board, opponent, MEDIUM_RESPONSE_LIMIT);
+                const opponentReplies = this.prepareCandidatesForPlayer(board, opponent, this.mediumResponseLimit);
                 if (metrics) {
                     metrics.responsesEvaluated += opponentReplies.length;
                 }
@@ -304,7 +336,7 @@ class AIPlayer {
         }
 
         if (bestMove) {
-            log(LOG_AI, 'Medium difficulty selecting strategic move', { move: bestMove, score: bestScore });
+            log(LOG_AI, 'Medium difficulty selecting strategic move', { move: bestMove, score: bestScore, profile: this.behaviorLabel || undefined });
             if (metrics) {
                 metrics.decision = 'candidate';
                 metrics.selectedScore = bestScore;
@@ -321,10 +353,14 @@ class AIPlayer {
     }
 
     makeHardMove(board, metrics = null) {
-        log(LOG_AI, 'Hard difficulty running minimax search');
+        log(LOG_AI, 'Hard difficulty running minimax search', {
+            profile: this.behaviorLabel || undefined,
+            depth: this.hardSearchDepth
+        });
         if (metrics) {
             metrics.strategy = 'hard';
-            metrics.searchDepth = HARD_SEARCH_DEPTH;
+            metrics.searchDepth = this.hardSearchDepth;
+            metrics.profile = this.behaviorLabel;
             metrics.consideredCandidates = 0;
             metrics.nodesEvaluated = 0;
             metrics.maxDepthReached = 0;
@@ -332,7 +368,7 @@ class AIPlayer {
         }
         const winningMove = this.findWinningMove(board, this.playerColor);
         if (winningMove) {
-            log(LOG_AI, 'Hard difficulty finishing with immediate win', { move: winningMove });
+            log(LOG_AI, 'Hard difficulty finishing with immediate win', { move: winningMove, profile: this.behaviorLabel || undefined });
             if (metrics) {
                 metrics.decision = 'immediate-win';
                 metrics.selectedScore = WIN_SCORE;
@@ -343,7 +379,7 @@ class AIPlayer {
         const opponent = this.getOpponentColor();
         const blockingMove = this.findWinningMove(board, opponent);
         if (blockingMove) {
-            log(LOG_AI, 'Hard difficulty blocking opponent win before searching', { move: blockingMove });
+            log(LOG_AI, 'Hard difficulty blocking opponent win before searching', { move: blockingMove, profile: this.behaviorLabel || undefined });
             if (metrics) {
                 metrics.decision = 'block-threat';
                 metrics.selectedScore = null;
@@ -351,7 +387,7 @@ class AIPlayer {
             return blockingMove;
         }
 
-        const candidateLimit = this.getAdaptiveCandidateLimit(board, this.playerColor, HARD_CANDIDATE_LIMIT);
+        const candidateLimit = this.getAdaptiveCandidateLimit(board, this.playerColor, this.hardCandidateLimit);
         const candidates = this.prepareCandidates(board, candidateLimit);
         if (metrics) {
             metrics.candidateCount = candidates.length;
@@ -377,7 +413,7 @@ class AIPlayer {
             if (this.checkWinningMove(board, row, col, this.playerColor)) {
                 score = WIN_SCORE;
             } else {
-                score = this.minimax(board, HARD_SEARCH_DEPTH - 1, false, -Infinity, Infinity, metrics, 1);
+                score = this.minimax(board, this.hardSearchDepth - 1, false, -Infinity, Infinity, metrics, 1);
             }
             board[row][col] = EMPTY;
 
@@ -388,7 +424,7 @@ class AIPlayer {
         }
 
         if (bestMove) {
-            log(LOG_AI, 'Hard difficulty move selected', { move: bestMove, score: bestScore });
+            log(LOG_AI, 'Hard difficulty move selected', { move: bestMove, score: bestScore, profile: this.behaviorLabel || undefined, depth: this.hardSearchDepth });
             if (metrics) {
                 metrics.decision = 'search';
                 metrics.selectedScore = bestScore;
@@ -396,7 +432,7 @@ class AIPlayer {
             return bestMove;
         }
 
-        log(LOG_AI, 'Hard difficulty falling back to medium heuristics');
+        log(LOG_AI, 'Hard difficulty falling back to medium heuristics', { profile: this.behaviorLabel || undefined });
         if (metrics) {
             metrics.decision = 'medium-fallback';
             metrics.selectedScore = null;
@@ -415,7 +451,7 @@ class AIPlayer {
         }
 
         const current = maximizingPlayer ? this.playerColor : this.getOpponentColor();
-        const candidateLimit = this.getAdaptiveCandidateLimit(board, current, HARD_CANDIDATE_LIMIT);
+        const candidateLimit = this.getAdaptiveCandidateLimit(board, current, this.hardCandidateLimit);
         const candidates = this.prepareCandidatesForPlayer(board, current, candidateLimit);
         if (metrics) {
             metrics.maxBranchingFactor = Math.max(metrics.maxBranchingFactor ?? 0, candidates.length);
@@ -659,4 +695,3 @@ class AIPlayer {
 }
 
 export default AIPlayer;
-

@@ -6,8 +6,8 @@ import { createEmptyBoard } from '../src/engine/game.js';
 
 import { BLACK, WHITE, EMPTY } from '../config.js';
 
-
 describe('AIPlayer', () => {
+
     it('takes immediate winning move on easy difficulty', () => {
         const board = createEmptyBoard();
         board[5][5] = WHITE;
@@ -93,6 +93,7 @@ describe('AIPlayer', () => {
         expect(events.length).toBe(1);
         const event = events[0];
         expect(event.strategy).toBe('hard');
+        expect(event.profile ?? null).toBeNull();
         expect(event.candidateCount).toBeGreaterThan(0);
         expect(event.nodesEvaluated).toBeGreaterThan(0);
         expect(event.searchDepth).toBe(3);
@@ -118,7 +119,8 @@ describe('AIPlayer', () => {
         const expanded = ai.getAdaptiveCandidateLimit(board, WHITE, 8);
         expect(expanded).toBeGreaterThan(8);
     });
-    it('throws when provided a malformed board state', () => {
+
+    it('throws when provided a malformed board state', () => {
         const ai = new AIPlayer('easy', BLACK);
         expect(() => ai.makeMove([[BLACK]])).toThrow('Invalid board state');
     });
@@ -160,7 +162,31 @@ describe('AIPlayer', () => {
         const move = ai.makeMove(board);
         expect(move).toBeTruthy();
         expect(JSON.stringify(board)).toBe(snapshot);
-    });
+    });
 
+    it('honors behavior overrides for hard search depth and telemetry profile', () => {
+        const board = createEmptyBoard();
+        board[7][7] = BLACK;
+        board[6][7] = WHITE;
+        board[8][8] = WHITE;
+
+        const events = [];
+        const ai = new AIPlayer('hard', WHITE, {
+            random: () => 0.4,
+            telemetry: entry => events.push(entry),
+            behavior: {
+                name: 'depth-4',
+                hardSearchDepth: 4,
+                hardCandidateLimit: 10
+            }
+        });
+        const move = ai.makeMove(board);
+        expect(move).toBeTruthy();
+        expect(events.length).toBe(1);
+        const event = events[0];
+        expect(event.profile).toBe('depth-4');
+        expect(event.searchDepth).toBe(4);
+        expect(event.strategy).toBe('hard');
+    });
 
 });

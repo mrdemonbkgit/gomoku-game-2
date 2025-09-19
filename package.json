@@ -10,7 +10,8 @@
         "test:watch": "vitest",
         "bench:run": "node benchmarks/runners/run-benchmarks.mjs",
         "bench:ci": "node benchmarks/runners/run-benchmarks.mjs --config benchmarks/config/ci.json",
-        "generate:favicon": "node scripts/generate-favicon.mjs"
+        "generate:favicon": "node scripts/generate-favicon.mjs",
+        "bench:extended": "node benchmarks/runners/run-benchmarks-extended.mjs"
     },
     "devDependencies": {
         "png-to-ico": "^3.0.1",
