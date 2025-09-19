@@ -118,5 +118,49 @@ describe('AIPlayer', () => {
         const expanded = ai.getAdaptiveCandidateLimit(board, WHITE, 8);
         expect(expanded).toBeGreaterThan(8);
     });
+    it('throws when provided a malformed board state', () => {
+        const ai = new AIPlayer('easy', BLACK);
+        expect(() => ai.makeMove([[BLACK]])).toThrow('Invalid board state');
+    });
+
+    it('hard difficulty seizes immediate winning move', () => {
+        const board = createEmptyBoard();
+        board[5][4] = WHITE;
+        board[5][5] = BLACK;
+        board[5][6] = BLACK;
+        board[5][7] = BLACK;
+        board[5][8] = BLACK;
+        const ai = new AIPlayer('hard', BLACK, { random: () => 0 });
+        const move = ai.makeMove(board);
+        expect(move).toEqual({ row: 5, col: 9 });
+    });
+
+    it('hard difficulty blocks the opponent when a win is threatened', () => {
+        const board = createEmptyBoard();
+        board[8][2] = BLACK;
+        board[8][3] = WHITE;
+        board[8][4] = WHITE;
+        board[8][5] = WHITE;
+        board[8][6] = WHITE;
+        const ai = new AIPlayer('hard', BLACK, { random: () => 0 });
+        const move = ai.makeMove(board);
+        expect(move).toEqual({ row: 8, col: 7 });
+    });
+
+    it('continues evaluating even if telemetry callbacks throw', () => {
+        const board = createEmptyBoard();
+        board[7][7] = BLACK;
+        const ai = new AIPlayer('medium', BLACK, {
+            random: () => 0.3,
+            telemetry: () => {
+                throw new Error('telemetry failed');
+            }
+        });
+        const snapshot = JSON.stringify(board);
+        const move = ai.makeMove(board);
+        expect(move).toBeTruthy();
+        expect(JSON.stringify(board)).toBe(snapshot);
+    });
+
 
 });
