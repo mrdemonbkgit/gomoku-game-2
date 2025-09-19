@@ -73,6 +73,18 @@
                     </div>
                 </div>
 
+                <details id="move-history-panel" class="move-history">
+                    <summary>Move History</summary>
+                    <div class="move-history__content">
+                        <div class="move-history__controls" role="group" aria-label="Replay controls">
+                            <button id="history-step-back" type="button" class="tertiary">Step Back</button>
+                            <button id="history-play-pause" type="button" class="tertiary">Play</button>
+                            <button id="history-step-forward" type="button" class="tertiary">Step Forward</button>
+                            <button id="history-exit" type="button" class="tertiary danger">Exit Review</button>
+                        </div>
+                        <ol id="move-history-list" class="move-history__list" aria-label="Move history"></ol>
+                    </div>
+                </details>
                 <p class="hint" role="note">Tip: Change game modes at any time and use Undo to rethink your strategy.</p>
             </aside>
         </div>

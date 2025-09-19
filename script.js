@@ -33,6 +33,10 @@ let gameMode = 'human'; // 'human' or 'ai'
 let aiPlayer = null;
 let aiDifficulty = 'easy';
 
+let isReviewMode = false;
+let reviewIndex = 0;
+let reviewTimer = null;
+
 // DOM elements
 const boardElement = document.getElementById('board');
 const statusContainer = document.getElementById('status');
@@ -48,9 +52,16 @@ const playerColorSelect = document.getElementById('player-color');
 
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const gridToggle = document.getElementById('grid-toggle');
+const moveHistoryPanel = document.getElementById('move-history-panel');
+const moveHistoryList = document.getElementById('move-history-list');
+const historyStepBackButton = document.getElementById('history-step-back');
+const historyPlayPauseButton = document.getElementById('history-play-pause');
+const historyStepForwardButton = document.getElementById('history-step-forward');
+const historyExitButton = document.getElementById('history-exit');
 
 const THEME_STORAGE_KEY = 'gomoku-theme';
 const GRID_STORAGE_KEY = 'gomoku-grid-visible';
+const columnLabels = buildColumnLabels(BOARD_SIZE);
 
 function validateDomReferences() {
     const missingElements = [];
@@ -66,6 +77,12 @@ function validateDomReferences() {
     if (!aiDifficultySelect) missingElements.push('ai-difficulty');
     if (!darkModeToggle) missingElements.push('dark-mode-toggle');
     if (!gridToggle) missingElements.push('grid-toggle');
+    if (!moveHistoryPanel) missingElements.push('move-history-panel');
+    if (!moveHistoryList) missingElements.push('move-history-list');
+    if (!historyStepBackButton) missingElements.push('history-step-back');
+    if (!historyPlayPauseButton) missingElements.push('history-play-pause');
+    if (!historyStepForwardButton) missingElements.push('history-step-forward');
+    if (!historyExitButton) missingElements.push('history-exit');
 
     if (missingElements.length > 0) {
         log(LOG_ERROR, 'Missing required DOM elements', { missingElements });
@@ -103,7 +120,7 @@ function initializeBoard() {
  * @param {Event} event - The click event object
  */
 function handleCellClick(event) {
-    if (gameOver || (gameMode === 'ai' && currentPlayer !== humanPlayerColor)) return;
+    if (gameOver || isReviewMode || (gameMode === 'ai' && currentPlayer !== humanPlayerColor)) return;
 
     const row = parseInt(event.target.dataset.row);
     const col = parseInt(event.target.dataset.col);
@@ -124,7 +141,7 @@ function handleCellClick(event) {
  * Makes a move for the AI player.
  */
 function makeAIMove() {
-    if (!aiPlayer || gameOver || currentPlayer !== aiPlayerColor) {
+    if (!aiPlayer || gameOver || isReviewMode || currentPlayer !== aiPlayerColor) {
         return;
     }
 
@@ -146,6 +163,12 @@ function makeAIMove() {
 function makeMove(row, col) {
     placeStone(row, col);
     saveMove(row, col);
+
+    if (!isReviewMode) {
+        reviewIndex = moveHistory.length;
+    }
+    renderMoveHistory();
+    updateReviewControlsState();
 
     log(LOG_MOVE, 'Move made', { player: currentPlayer, row, col });
 
@@ -211,6 +234,11 @@ function setStatus(message, indicatorState = 'neutral') {
  * Update the status display
  */
 function updateStatus() {
+    if (isReviewMode) {
+        renderReviewStatus();
+        return;
+    }
+
     let message;
     let indicatorState;
 
@@ -241,6 +269,10 @@ function updateStatus() {
  */
 function resetGame() {
     syncAIOptionsVisibility();
+
+    stopReplay();
+    isReviewMode = false;
+    reviewIndex = 0;
 
     if (playerColorSelect) {
         humanPlayerColor = playerColorSelect.value === 'white' ? WHITE : BLACK;
@@ -288,6 +320,9 @@ function resetGame() {
     // Update the game status display
     updateStatus();
 
+    renderMoveHistory();
+    updateReviewControlsState();
+
     log(LOG_GAME, 'Game reset', {
         gameMode,
         aiDifficulty,
@@ -318,6 +353,12 @@ function saveMove(row, col) {
 function undo() {
     if (moveHistory.length === 0) {
         return;
+    }
+
+    if (isReviewMode) {
+        exitReviewMode();
+    } else {
+        stopReplay({ updateButton: false });
     }
 
     clearWinningHighlight();
@@ -358,6 +399,9 @@ function undo() {
     updateBoard();
     updateStatus();
     updateUndoButton();
+    reviewIndex = moveHistory.length;
+    renderMoveHistory();
+    updateReviewControlsState();
 
     log(LOG_MOVE, 'Move(s) undone', { undoneMovesCount: removedMoves.length });
 
@@ -376,6 +420,7 @@ function undo() {
  */
 function updateBoard() {
     const cells = document.querySelectorAll('.cell');
+    document.querySelectorAll('.cell.last-move').forEach(cell => cell.classList.remove('last-move'));
     cells.forEach((cell, index) => {
         const row = Math.floor(index / BOARD_SIZE);
         const col = index % BOARD_SIZE;
@@ -659,6 +704,21 @@ function setupEventListeners() {
     if (gridToggle) {
         gridToggle.addEventListener('change', handleGridToggle);
     }
+    if (historyStepBackButton) {
+        historyStepBackButton.addEventListener('click', () => step(-1));
+    }
+    if (historyStepForwardButton) {
+        historyStepForwardButton.addEventListener('click', () => step(1));
+    }
+    if (historyPlayPauseButton) {
+        historyPlayPauseButton.addEventListener('click', toggleReplay);
+    }
+    if (historyExitButton) {
+        historyExitButton.addEventListener('click', () => exitReviewMode());
+    }
+    if (moveHistoryPanel) {
+        moveHistoryPanel.addEventListener('toggle', () => updateReviewControlsState());
+    }
     log(LOG_GAME, 'Event listeners set up');
 }
 
@@ -670,6 +730,377 @@ function syncAIOptionsVisibility() {
     if (playerColorOptionsDiv) {
         playerColorOptionsDiv.hidden = shouldHide;
         playerColorOptionsDiv.setAttribute('aria-hidden', shouldHide ? 'true' : 'false');
+    }
+}
+
+
+function buildColumnLabels(size) {
+    const labels = [];
+    for (let i = 0; i < size; i++) {
+        labels.push(String.fromCharCode(65 + i));
+    }
+    return labels;
+}
+
+function coordsToLabel(row, col) {
+    const column = columnLabels[col] || String.fromCharCode(65 + col);
+    return column + (row + 1);
+}
+
+function buildSnapshotFromHistory(limit) {
+    const snapshotBoard = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
+    let lastPlaced = null;
+    let winningSequenceLocal = [];
+    let winningMoveIndex = -1;
+
+    for (let i = 0; i < limit && i < moveHistory.length; i++) {
+        const move = moveHistory[i];
+        snapshotBoard[move.row][move.col] = move.player;
+        lastPlaced = { row: move.row, col: move.col, player: move.player };
+
+        if (winningMoveIndex === -1) {
+            const result = engineDetermineWinningSequence(snapshotBoard, move.row, move.col);
+            if (result) {
+                winningSequenceLocal = result.sequence.map(position => ({ row: position.row, col: position.col }));
+                winningMoveIndex = i;
+            }
+        }
+    }
+
+    const isWinningPosition = winningMoveIndex !== -1 && limit === winningMoveIndex + 1;
+    const isDrawPosition = limit === moveHistory.length && engineCheckDraw(snapshotBoard);
+    const winningPlayer = isWinningPosition && lastPlaced ? lastPlaced.player : null;
+
+    let nextPlayer = BLACK;
+    if (lastPlaced) {
+        if (isWinningPosition || isDrawPosition) {
+            nextPlayer = lastPlaced.player;
+        } else {
+            nextPlayer = lastPlaced.player === BLACK ? WHITE : BLACK;
+        }
+    }
+
+    return {
+        board: snapshotBoard,
+        lastMove: lastPlaced,
+        winningSequence: isWinningPosition ? winningSequenceLocal : [],
+        winningMoveIndex,
+        isWinningPosition,
+        winningPlayer,
+        isDraw: isDrawPosition,
+        nextPlayer
+    };
+}
+
+function renderMoveHistory() {
+    if (!moveHistoryList) {
+        return;
+    }
+
+    moveHistoryList.innerHTML = '';
+    const totalMoves = moveHistory.length;
+    reviewIndex = Math.max(0, Math.min(reviewIndex, totalMoves));
+
+    if (totalMoves === 0) {
+        const emptyState = document.createElement('li');
+        emptyState.className = 'move-history__empty';
+        emptyState.textContent = 'No moves yet. Play to build history.';
+        moveHistoryList.appendChild(emptyState);
+        updateReviewControlsState();
+        return;
+    }
+
+    moveHistory.forEach((move, index) => {
+        const listItem = document.createElement('li');
+
+        const entryButton = document.createElement('button');
+        entryButton.type = 'button';
+        entryButton.className = 'move-history__entry';
+        entryButton.dataset.index = String(index + 1);
+
+        const number = document.createElement('span');
+        number.className = 'move-history__number';
+        number.textContent = String(index + 1) + '.';
+
+        const stone = document.createElement('span');
+        stone.className = 'move-history__stone ' + (move.player === BLACK ? 'move-history__stone--black' : 'move-history__stone--white');
+
+        const details = document.createElement('span');
+        details.className = 'move-history__details';
+
+        const label = document.createElement('span');
+        label.className = 'move-history__label';
+        label.textContent = move.player === BLACK ? 'Black' : 'White';
+
+        const coords = document.createElement('span');
+        coords.className = 'move-history__coords';
+        coords.textContent = coordsToLabel(move.row, move.col);
+
+        details.appendChild(label);
+        details.appendChild(coords);
+
+        entryButton.appendChild(number);
+        entryButton.appendChild(stone);
+        entryButton.appendChild(details);
+
+        entryButton.addEventListener('click', () => enterReviewMode(index + 1));
+
+        listItem.appendChild(entryButton);
+        moveHistoryList.appendChild(listItem);
+    });
+
+    updateActiveHistoryEntry();
+    updateReviewControlsState();
+}
+
+function updateActiveHistoryEntry() {
+    if (!moveHistoryList) {
+        return;
+    }
+
+    const pointer = isReviewMode ? reviewIndex : moveHistory.length;
+    const buttons = moveHistoryList.querySelectorAll('.move-history__entry');
+
+    buttons.forEach(button => {
+        const entryIndex = Number(button.dataset.index || '0');
+        const isActive = pointer > 0 && entryIndex === pointer;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-current', isActive ? 'true' : 'false');
+        if (isActive) {
+            button.scrollIntoView({ block: 'nearest' });
+        }
+    });
+}
+
+function updateReviewControlsState() {
+    const totalMoves = moveHistory.length;
+    const pointer = isReviewMode ? reviewIndex : totalMoves;
+
+    if (historyStepBackButton) {
+        historyStepBackButton.disabled = totalMoves === 0 || (isReviewMode && pointer === 0);
+    }
+    if (historyStepForwardButton) {
+        historyStepForwardButton.disabled = totalMoves === 0 || pointer === totalMoves;
+    }
+    if (historyPlayPauseButton) {
+        historyPlayPauseButton.disabled = totalMoves === 0;
+        historyPlayPauseButton.textContent = reviewTimer ? 'Pause' : 'Play';
+    }
+    if (historyExitButton) {
+        historyExitButton.disabled = !isReviewMode;
+    }
+}
+
+function renderReviewStatus(snapshot, pointer, isDrawPosition) {
+    if (typeof snapshot === 'undefined') {
+        snapshot = buildSnapshotFromHistory(reviewIndex);
+        pointer = reviewIndex;
+        isDrawPosition = snapshot.isDraw && reviewIndex === moveHistory.length;
+    }
+
+    const totalMoves = moveHistory.length;
+    let message;
+    let indicator = 'neutral';
+
+    if (totalMoves === 0 || pointer === 0) {
+        const nextPlayerName = snapshot.nextPlayer === BLACK ? 'Black' : 'White';
+        message = 'Reviewing game start - Next: ' + nextPlayerName;
+    } else {
+        const move = moveHistory[pointer - 1];
+        const playerName = move.player === BLACK ? 'Black' : 'White';
+        const coords = coordsToLabel(move.row, move.col);
+        message = 'Reviewing ' + pointer + '/' + totalMoves + ': ' + playerName + ' ' + coords;
+
+        if (snapshot.isWinningPosition) {
+            message += ' - ' + playerName + ' wins';
+            indicator = move.player === BLACK ? 'black' : 'white';
+        } else if (isDrawPosition) {
+            message += ' - Draw';
+            indicator = 'neutral';
+        } else {
+            const nextPlayerName = snapshot.nextPlayer === BLACK ? 'Black' : 'White';
+            message += ' - Next: ' + nextPlayerName;
+            indicator = move.player === BLACK ? 'black' : 'white';
+        }
+    }
+
+    setStatus(message, indicator);
+}
+
+function jumpToMove(index, options) {
+    const settings = options || {};
+    const reason = settings.reason || (isReviewMode ? 'review' : 'live');
+    const silent = Boolean(settings.silent);
+    const clamped = Math.max(0, Math.min(index, moveHistory.length));
+    reviewIndex = clamped;
+
+    const snapshot = buildSnapshotFromHistory(clamped);
+
+    board = snapshot.board.map(row => row.slice());
+    winningSequence = snapshot.winningSequence.map(position => ({ row: position.row, col: position.col }));
+    const lastMoveForHighlight = snapshot.lastMove ? { row: snapshot.lastMove.row, col: snapshot.lastMove.col } : null;
+    const isDrawPosition = snapshot.isDraw && clamped === moveHistory.length;
+
+    currentPlayer = snapshot.nextPlayer;
+    gameOver = snapshot.isWinningPosition || isDrawPosition;
+
+    document.querySelectorAll('.cell.last-move').forEach(cell => cell.classList.remove('last-move'));
+    updateBoard();
+    lastMove = null;
+
+    if (lastMoveForHighlight) {
+        highlightLastMove(lastMoveForHighlight.row, lastMoveForHighlight.col);
+    }
+
+    if (reason === 'review') {
+        renderReviewStatus(snapshot, clamped, isDrawPosition);
+    } else if (!silent) {
+        if (snapshot.isWinningPosition && snapshot.winningPlayer !== null) {
+            const indicator = snapshot.winningPlayer === BLACK ? 'black' : 'white';
+            const winnerName = snapshot.winningPlayer === BLACK ? 'Black' : 'White';
+            setStatus('Player ' + winnerName + ' wins!', indicator);
+        } else if (isDrawPosition) {
+            setStatus('It\'s a draw!', 'neutral');
+        } else {
+            updateStatus();
+        }
+    }
+
+    updateActiveHistoryEntry();
+    updateReviewControlsState();
+
+    log(LOG_GAME, 'Jumped to board snapshot', { index: clamped, reason: reason });
+
+    return snapshot;
+}
+
+function enterReviewMode(index) {
+    if (moveHistory.length === 0) {
+        return;
+    }
+
+    stopReplay();
+    isReviewMode = true;
+
+    if (typeof index !== 'number') {
+        index = moveHistory.length;
+    }
+
+    if (moveHistoryPanel && !moveHistoryPanel.open) {
+        moveHistoryPanel.open = true;
+    }
+
+    const clampedIndex = Math.max(0, Math.min(index, moveHistory.length));
+    jumpToMove(clampedIndex, { reason: 'review' });
+    log(LOG_GAME, 'Entered review mode', { index: clampedIndex });
+
+    updateActiveHistoryEntry();
+    updateReviewControlsState();
+}
+
+function exitReviewMode(options) {
+    const settings = options || {};
+    const restoreBoard = settings.restoreBoard !== false;
+    const silent = Boolean(settings.silent);
+
+    if (!isReviewMode && reviewTimer === null) {
+        reviewIndex = moveHistory.length;
+        updateReviewControlsState();
+        return;
+    }
+
+    stopReplay();
+    const wasInReview = isReviewMode;
+    isReviewMode = false;
+    reviewIndex = moveHistory.length;
+
+    if (restoreBoard) {
+        const snapshot = jumpToMove(moveHistory.length, { reason: 'live', silent: true });
+        if (snapshot.isWinningPosition && snapshot.winningPlayer !== null) {
+            const indicator = snapshot.winningPlayer === BLACK ? 'black' : 'white';
+            const winnerName = snapshot.winningPlayer === BLACK ? 'Black' : 'White';
+            setStatus('Player ' + winnerName + ' wins!', indicator);
+        } else if (snapshot.isDraw) {
+            setStatus('It\'s a draw!', 'neutral');
+        } else {
+            updateStatus();
+        }
+    }
+
+    if (!gameOver && gameMode === 'ai' && currentPlayer === aiPlayerColor) {
+        setTimeout(() => {
+            if (!gameOver && currentPlayer === aiPlayerColor && !isReviewMode) {
+                makeAIMove();
+            }
+        }, 300);
+    }
+
+    if (wasInReview && !silent) {
+        log(LOG_GAME, 'Exited review mode');
+    }
+
+    updateActiveHistoryEntry();
+    updateReviewControlsState();
+}
+
+function step(delta) {
+    if (moveHistory.length === 0) {
+        return;
+    }
+
+    const pointer = (isReviewMode ? reviewIndex : moveHistory.length) + delta;
+    const clamped = Math.max(0, Math.min(pointer, moveHistory.length));
+
+    if (!isReviewMode) {
+        enterReviewMode(clamped);
+    } else {
+        jumpToMove(clamped, { reason: 'review' });
+    }
+}
+
+function toggleReplay() {
+    if (moveHistory.length === 0) {
+        return;
+    }
+
+    if (reviewTimer !== null) {
+        stopReplay();
+        return;
+    }
+
+    if (!isReviewMode || reviewIndex >= moveHistory.length) {
+        enterReviewMode(0);
+    }
+
+    reviewTimer = window.setInterval(() => {
+        if (!isReviewMode || reviewIndex >= moveHistory.length) {
+            stopReplay();
+            return;
+        }
+
+        jumpToMove(reviewIndex + 1, { reason: 'review' });
+
+        if (reviewIndex >= moveHistory.length) {
+            stopReplay();
+        }
+    }, 900);
+
+    updateReviewControlsState();
+    log(LOG_GAME, 'Replay started', { startIndex: reviewIndex });
+}
+
+function stopReplay(options) {
+    const settings = options || {};
+    const updateButton = settings.updateButton !== false;
+
+    if (reviewTimer !== null) {
+        clearInterval(reviewTimer);
+        reviewTimer = null;
+        log(LOG_GAME, 'Replay stopped');
+    }
+
+    if (updateButton) {
+        updateReviewControlsState();
     }
 }
 

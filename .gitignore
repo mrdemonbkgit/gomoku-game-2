@@ -2,3 +2,52 @@ node_modules/
 benchmarks/results/
 .DS_Store
 npm-debug.log*
+
+# Logs
+logs
+*.log
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS-specific junk
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Env files
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build output
+dist/
+build/
+out/
+
+# Caches
+.cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+.pnpm-store/
+
+# Editors/IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Misc
+.node_repl_history
+*.tgz
+.vercel/
+tmp/
+temp/

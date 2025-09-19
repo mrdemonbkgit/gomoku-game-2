@@ -5,7 +5,7 @@ export const BOARD_SIZE = 15; // Size of the game board (15x15)
 export const EMPTY = 0; // Represents an empty cell
 export const BLACK = 1; // Represents a black stone
 export const WHITE = 2; // Represents a white stone
-export const MAX_HISTORY = 50; // Maximum number of moves to store in history
+export const MAX_HISTORY = BOARD_SIZE * BOARD_SIZE; // Maximum number of moves to store in history
 
 // Logging categories
 export const LOG_GAME = 'GAME';
